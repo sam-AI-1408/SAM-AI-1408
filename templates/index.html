@@ -1,0 +1,151 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>SAM AI — Landing</title>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&display=swap" rel="stylesheet">
+  <style>
+    :root {
+      --bg: #050615;
+      --panel: #0f1630;
+      --card: #0a1224;
+      --accent: #00d0ff;
+      --alert: #ff8fa3;
+      --font-primary: 'Inter', "Segoe UI", Roboto, sans-serif;
+      --radius-xl: 14px;
+    }
+    body, html {
+      margin: 0; padding: 0;
+      height: 100%; width: 100%;
+      font-family: var(--font-primary);
+      background: var(--bg);
+      color: var(--accent);
+      display: flex; justify-content: center; align-items: center;
+    }
+    .container {
+      background: var(--panel);
+      padding: 30px 40px;
+      border-radius: var(--radius-xl);
+      text-align: center;
+      box-shadow: 0 10px 30px rgba(0,0,0,0.6);
+      max-width: 600px;
+    }
+    .dialogue {
+      font-size: 16px;
+      margin-bottom: 20px;
+      min-height: 60px;
+      line-height: 1.4;
+      opacity: 0;
+      animation: fadeIn 0.8s forwards;
+    }
+    .dialogue::after {
+      content: '|';
+      display: inline-block;
+      margin-left: 2px;
+      opacity: 1;
+      animation: blink 1s infinite;
+    }
+    @keyframes blink {
+      0%, 50% { opacity: 1; }
+      51%, 100% { opacity: 0; }
+    }
+    .popup {
+      display: none;
+      background: var(--card);
+      padding: 20px;
+      border-radius: var(--radius-xl);
+      margin-top: 20px;
+      transform: translateY(-20px);
+      opacity: 0;
+      transition: all 0.4s ease;
+    }
+    .popup.show {
+      display: block;
+      transform: translateY(0);
+      opacity: 1;
+    }
+    .popup button {
+      margin: 10px;
+      padding: 10px 20px;
+      font-weight: 600;
+      border: none;
+      border-radius: var(--radius-xl);
+      cursor: pointer;
+      transition: 0.3s;
+    }
+    .popup button:hover { opacity: 0.85; }
+    .yes-btn { background: var(--accent); color: #001; }
+    .no-btn { background: var(--alert); color: #001; }
+    @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
+  </style>
+</head>
+<body>
+
+  <div class="container">
+    <div class="dialogue" id="dialogue"></div>
+    <div class="popup" id="popup">
+      <p>Do you accept as a player?</p>
+      <button class="yes-btn" id="yesBtn">Yes</button>
+      <button class="no-btn" id="noBtn">No</button>
+    </div>
+  </div>
+
+  <audio id="clickSound" src="/static/click.mp3" preload="auto"></audio>
+
+  <script>
+    const dialogueText = "In the full of idiosyncratic world, you are chosen to be a player. Use this system and arise.";
+    const dialogueElement = document.getElementById("dialogue");
+    const popup = document.getElementById("popup");
+    let index = 0;
+    let typingInterval;
+
+    // Typewriting animation
+    function typeDialogue() {
+      if (index < dialogueText.length) {
+        dialogueElement.innerHTML = dialogueText.slice(0, index + 1);
+        index++;
+        typingInterval = setTimeout(typeDialogue, 70); // typing speed
+      } else {
+        endTyping();
+      }
+    }
+
+    function endTyping() {
+      clearTimeout(typingInterval);
+      dialogueElement.style.animation = 'none'; // stop blinking cursor
+      popup.classList.add('show'); // show popup
+    }
+
+    typeDialogue();
+
+    // Skip dialogue on click
+    document.addEventListener("click", () => {
+      if (index < dialogueText.length) {
+        dialogueElement.innerHTML = dialogueText; // finish dialogue immediately
+        endTyping();
+      }
+    });
+
+    // Button actions
+    document.getElementById("yesBtn").addEventListener("click", () => {
+      window.location.href = "/register";
+    });
+
+    document.getElementById("noBtn").addEventListener("click", () => {
+      dialogueElement.innerHTML = "You chose not to play. The system will close.";
+      popup.classList.remove('show');
+      setTimeout(() => window.close(), 3000);
+    });
+
+    // Click sound
+    const clickSound = document.getElementById("clickSound");
+    document.addEventListener("click", e => {
+      if (e.target.tagName === "BUTTON" || e.target.tagName === "A") {
+        clickSound.currentTime = 0;
+        clickSound.play();
+      }
+    });
+  </script>
+</body>
+</html>

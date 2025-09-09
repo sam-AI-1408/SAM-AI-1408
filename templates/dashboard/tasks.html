@@ -1,0 +1,443 @@
+{# templates/dashboard/tasks.html #}
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>{{ session.get('username', 'Player') }} — Tasks</title>
+  <style>
+    :root{
+      --bg:#050615; --panel:#0f1630; --card:#0a1224; --accent:#00d0ff;
+      --muted:#9fb2c4; --alert:#ff8fa3; --font:'Inter', system-ui, sans-serif;
+      --radius:12px;
+    }
+    *{box-sizing:border-box}
+    body{margin:0;font-family:var(--font);background:var(--bg);color:var(--accent);display:flex;min-height:100vh}
+    .sidebar{width:220px;background:var(--panel);padding:20px;display:flex;flex-direction:column;justify-content:space-between;gap:12px}
+    .logo{font-weight:800;text-align:center;color:var(--accent);font-size:20px}
+    .nav a{display:block;color:var(--accent);text-decoration:none;padding:8px;border-radius:8px;font-weight:600;margin-bottom:6px}
+    .nav a.active{background:rgba(0,208,255,0.06)}
+    .main{flex:1;padding:24px}
+    h1{margin:0 0 8px 0;color:var(--accent)}
+    .top-row{display:flex;justify-content:space-between;align-items:center;gap:12px}
+    .points-badge{background:var(--card);padding:8px 12px;border-radius:12px;font-weight:700}
+    .board{display:grid;grid-template-columns:1fr 340px;gap:18px;margin-top:18px}
+    .card{background:var(--panel);padding:16px;border-radius:var(--radius);box-shadow:0 8px 20px rgba(0,0,0,0.5)}
+    .form-row{display:flex;gap:8px;margin-top:8px}
+    input, textarea, select{background:var(--card);border:none;color:var(--accent);padding:10px;border-radius:8px;outline:none}
+    .btn{background:var(--accent);color:#051019;border:none;padding:10px 12px;border-radius:8px;font-weight:700;cursor:pointer}
+    .tasks-list{display:flex;flex-direction:column;gap:10px;margin-top:12px;max-height:520px;overflow:auto}
+    .task-item{display:flex;justify-content:space-between;gap:12px;align-items:center;background:var(--card);padding:12px;border-radius:10px;color:var(--muted)}
+    .task-title{color:var(--accent);font-weight:700}
+    .task-meta{font-size:13px;color:var(--muted)}
+    .task-actions{display:flex;gap:8px;align-items:center}
+    .small{font-size:13px;color:var(--muted)}
+    .btn-complete{background:#2ad19f;color:#001}
+    .btn-delete{background:#ff6b87;color:#fff}
+    .btn-edit{background:#ffd24d;color:#001}
+    #voiceResponse{position:fixed;bottom:100px;right:20px;background:#0f1630;color:var(--accent);padding:12px;border-radius:12px;display:none;max-width:300px}
+    @media (max-width:900px){.board{grid-template-columns:1fr}.sidebar{display:none}}
+    /* Modal */
+    .modal-backdrop{position:fixed;inset:0;background:rgba(0,0,0,0.6);display:none;align-items:center;justify-content:center;z-index:2000}
+    .modal{background:var(--panel);padding:18px;border-radius:12px;width:420px;max-width:95%}
+    .modal h3{margin-top:0}
+    .muted{color:var(--muted)}
+  </style>
+</head>
+<body>
+  <div class="sidebar">
+    <div>
+      <div class="logo">Sam AI</div>
+      <nav class="nav">
+        <a href="{{ url_for('profile') }}">Profile</a>
+        <a class="active" href="{{ url_for('tasks_page') }}">Tasks</a>
+        <a href="{{ url_for('academics') }}">Academics</a>
+        <a href="{{ url_for('quests_page') }}">Quests</a>
+        <a href="{{ url_for('developers') }}">Developers</a>
+      </nav>
+    </div>
+    <div>
+      <form action="{{ url_for('logout') }}" method="post">
+        <button class="btn" type="submit">Logout</button>
+      </form>
+    </div>
+  </div>
+
+  <div class="main">
+    <div class="top-row">
+      <div>
+        <h1>Tasks</h1>
+        <div class="small muted">Manage tasks — add, edit, complete & delete via buttons (or voice assistant).</div>
+      </div>
+      <div class="points-badge">Points: <span id="points">{{ user.points or 0 }}</span></div>
+    </div>
+
+    <div class="board">
+      <div class="card">
+        <h3>Add task</h3>
+        <form id="task-form" class="form-row" method="POST" action="{{ url_for('add_task') }}">
+          <input id="task-title" name="title" type="text" placeholder="Task title" required>
+          <input id="task-time" name="time" type="datetime-local">
+          <button class="btn" type="submit">Add</button>
+        </form>
+
+        <h3 style="margin-top:18px;">Your tasks</h3>
+        <div class="tasks-list" id="tasksList">
+          {# initial server-side render to avoid blank flash - handle SQLAlchemy or dict #}
+          {% for t in tasks %}
+          <div class="task-item" data-id="{{ t.id }}">
+            <div>
+              <div class="task-title">{{ t.title }}</div>
+              <div class="task-meta">
+                {% if t.alarm_time %} {{ t.alarm_time.strftime('%Y-%m-%d %H:%M') }} • {% endif %}
+                {{ 'Completed' if t.completed else 'Pending' }}
+              </div>
+            </div>
+            <div class="task-actions">
+              {% if not t.completed %}
+                <button class="btn btn-complete" data-id="{{ t.id }}">Complete</button>
+              {% else %}
+                <span class="small" style="color:#2ad19f">✔ Completed</span>
+              {% endif %}
+              <button class="btn btn-edit" data-id="{{ t.id }}" data-title="{{ t.title }}" data-time="{{ t.alarm_time.strftime('%Y-%m-%dT%H:%M') if t.alarm_time else '' }}">Modify</button>
+
+              <form method="POST" action="{{ url_for('delete_task', task_id=t.id) }}" style="display:inline;">
+                <button class="btn btn-delete" type="submit">Delete</button>
+              </form>
+            </div>
+          </div>
+          {% else %}
+            <div class="small muted" style="padding:12px">No tasks yet — add your first task above.</div>
+          {% endfor %}
+        </div>
+      </div>
+
+      <div class="card">
+        <h3>Overview & Analytics</h3>
+        <div id="analytics" style="margin-top:10px">
+          <div class="small">Total tasks: <strong id="totalCount">0</strong></div>
+          <div class="small">Pending: <strong id="pendingCount">0</strong></div>
+          <div class="small">Completed: <strong id="completedCount">0</strong></div>
+          <div style="height:12px"></div>
+          <h4 style="margin:8px 0 6px 0;color:var(--accent)">Upcoming by date</h4>
+          <div id="calendarList" class="small muted" style="max-height:360px;overflow:auto"></div>
+        </div>
+      </div>
+    </div>
+  </div>
+  <div id="taskLimitNotification" style="
+    display:none;
+    position:fixed;
+    top:0;
+    left:50%;
+    transform:translateX(-50%);
+    background:#ff6b87;
+    color:white;
+    padding:6px 12px;
+    border-radius:0 0 8px 8px;
+    font-size:14px;
+    font-weight:700;
+    z-index:3000;
+">
+    Daily task limit reached! You can only add 3 tasks.
+</div>
+
+  <div id="voiceResponse"></div>
+
+  <audio id="clickSound" src="/static/click.mp3" preload="auto"></audio>
+
+  <!-- Modify Modal -->
+  <div class="modal-backdrop" id="modalBackdrop">
+    <div class="modal">
+      <h3>Edit task</h3>
+      <div class="muted">Change the task title or alarm time and hit Save.</div>
+      <div style="margin-top:10px">
+        <input id="editTitle" placeholder="Title" type="text" style="width:100%;margin-bottom:8px">
+        <input id="editTime" type="datetime-local" style="width:100%;margin-bottom:12px">
+        <div style="display:flex;gap:8px;justify-content:flex-end">
+          <button class="btn" id="saveEditBtn">Save</button>
+          <button class="btn" id="cancelEditBtn" style="background:#444;color:var(--accent)">Cancel</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+<script>
+  const clickSound = document.getElementById("clickSound");
+  document.addEventListener("click", e => {
+    if (e.target.tagName === "BUTTON" || e.target.tagName === "A") {
+      clickSound.currentTime = 0; clickSound.play().catch(()=>{});
+    }
+  });
+
+  // Utility: fetch and refresh tasks list (AJAX)
+  async function fetchTasksAndRender() {
+    try {
+      const res = await fetch("/tasks_list");
+      const tasks = await res.json();
+
+      // tasks might be list of objects {id,title,completed} (as your /tasks_list returns)
+      // Render list
+      const list = document.getElementById("tasksList");
+      list.innerHTML = "";
+      if (!tasks || tasks.length === 0) {
+        list.innerHTML = '<div class="small muted" style="padding:12px">No tasks yet — add your first task above.</div>';
+      } else {
+        tasks.forEach(t => {
+          const el = document.createElement("div");
+          el.className = "task-item";
+          el.dataset.id = t.id;
+          const alarm = t.alarm_time || t.due_time || "";
+          const alarmText = alarm ? (new Date(alarm)).toLocaleString() + " • " : "";
+          el.innerHTML = `
+            <div>
+              <div class="task-title">${escapeHtml(t.title)}</div>
+              <div class="task-meta">${alarmText}${t.completed ? "Completed" : "Pending"}</div>
+            </div>
+            <div class="task-actions">
+              ${t.completed ? '<span class="small" style="color:#2ad19f">✔ Completed</span>' : `<button class="btn btn-complete" data-id="${t.id}">Complete</button>`}
+              <button class="btn btn-edit" data-id="${t.id}" data-title="${escapeHtml(t.title)}" data-time="${alarm ? formatForInput(alarm) : ''}">Modify</button>
+              <form method="POST" action="/delete_task/${t.id}" style="display:inline;"><button class="btn btn-delete" type="submit">Delete</button></form>
+            </div>
+          `;
+          list.appendChild(el);
+        });
+      }
+
+      // Wire up local buttons (complete / edit)
+      document.querySelectorAll(".btn-complete").forEach(btn => {
+        btn.onclick = async (ev) => {
+          btn.disabled = true;
+          const id = btn.dataset.id;
+          try {
+            const r = await fetch(`/complete_task/${id}`, { method: "POST" });
+            const data = await r.json();
+            if (data.success) {
+              document.getElementById("points").textContent = data.points || document.getElementById("points").textContent;
+              await fetchTasksAndRender();
+            } else {
+              alert("Could not complete task");
+              btn.disabled = false;
+            }
+          } catch(err) { console.error(err); btn.disabled=false; }
+        };
+      });
+
+      document.querySelectorAll(".btn-edit").forEach(btn => {
+        btn.onclick = (ev) => {
+          openEditModal(btn.dataset.id, btn.dataset.title, btn.dataset.time);
+        };
+      });
+
+      // Update analytics/calendar
+      updateAnalytics(tasks || []);
+    } catch(err) {
+      console.error("Load tasks error", err);
+    }
+  }
+
+  // Format date to HTML input value "YYYY-MM-DDTHH:MM"
+  function formatForInput(val) {
+    try {
+      const d = new Date(val);
+      if (isNaN(d)) return "";
+      const pad = n => n.toString().padStart(2,'0');
+      return `${d.getFullYear()}-${pad(d.getMonth()+1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`;
+    } catch(e){ return ""; }
+  }
+
+  // update analytics panel
+  function updateAnalytics(tasks) {
+    const total = tasks.length;
+    const completed = tasks.filter(t=>t.completed).length;
+    const pending = total - completed;
+    document.getElementById("totalCount").textContent = total;
+    document.getElementById("pendingCount").textContent = pending;
+    document.getElementById("completedCount").textContent = completed;
+
+    // upcoming by date
+    const upcoming = tasks
+      .filter(t => t.alarm_time || t.due_time)
+      .map(t => ({...t, date: new Date(t.alarm_time || t.due_time)}))
+      .filter(t => !isNaN(t.date))
+      .sort((a,b)=>a.date - b.date)
+      .slice(0,20);
+
+    const cal = document.getElementById("calendarList");
+    if (upcoming.length === 0) { cal.innerHTML = '<div class="muted">No scheduled reminders.</div>'; return; }
+    cal.innerHTML = upcoming.map(u => `<div style="margin-bottom:8px"><strong>${(new Date(u.date)).toLocaleString()}</strong><div class="muted">${escapeHtml(u.title)}</div></div>`).join("");
+  }
+ 
+  
+
+  // Edit modal
+  const modalBackdrop = document.getElementById("modalBackdrop");
+  const editTitle = document.getElementById("editTitle");
+  const editTime = document.getElementById("editTime");
+  let currentEditId = null;
+  document.getElementById("cancelEditBtn").onclick = () => closeEditModal();
+  document.getElementById("saveEditBtn").onclick = async () => {
+    const newTitle = editTitle.value.trim();
+    // modify_task route currently expects JSON with "title" (your app's route)
+    if (!newTitle) { alert("Title is required."); return; }
+    try {
+      const res = await fetch(`/modify_task/${currentEditId}`, {
+        method: "POST",
+        headers: {"Content-Type":"application/json"},
+        body: JSON.stringify({ title: newTitle })
+      });
+      const data = await res.json();
+      if (data.success) {
+        // time is optional in backend; since you don't have a backend update for alarm_time,
+        // We're only altering title via /modify_task. If you later add a route to update time,
+        // call it here via fetch.
+        closeEditModal();
+        await fetchTasksAndRender();
+      } else {
+        alert("Update failed.");
+      }
+    } catch(err) {
+      console.error(err); alert("Network error while saving.");
+    }
+  };
+
+  function openEditModal(id, title, timeVal) {
+    currentEditId = id;
+    editTitle.value = title || "";
+    editTime.value = timeVal || "";
+    modalBackdrop.style.display = "flex";
+  }
+  function closeEditModal() {
+    currentEditId = null;
+    modalBackdrop.style.display = "none";
+  }
+
+  // escape helper
+  function escapeHtml(s){ return String(s||'').replace(/[&<>"']/g, c=>({ '&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;' })[c]); }
+
+  // initial load
+  fetchTasksAndRender();
+
+  // Optional: auto-poll every 7s to keep UI fresh (useful if other tabs or users)
+  setInterval(fetchTasksAndRender, 7000);
+
+  // Helper: format input when user submits add form (the server accepts "time" as string)
+  document.getElementById("task-form").addEventListener("submit", (e)=>{
+    // allow normal form submit so backend creates the task and page redirects; after redirect AJAX will refresh
+  });
+
+  // If you want to use voice assistant file, make sure to include it below
+  // <script src="{{ url_for('static', filename='js/voice_assistant.js') }}"></script>
+</script>
+
+<script>
+const taskForm = document.getElementById("task-form");
+const tasksList = document.getElementById("tasksList");
+const taskLimitNotification = document.getElementById("taskLimitNotification");
+
+function checkTaskLimit() {
+  const currentTasks = tasksList.querySelectorAll(".task-item").length;
+  if (currentTasks >= 3) {
+    taskLimitNotification.style.display = "block"; // show banner
+    return true;
+  } else {
+    taskLimitNotification.style.display = "none"; // hide banner
+    return false;
+  }
+}
+
+// Run every time tasks are fetched
+async function fetchTasksAndRender() {
+  try {
+    const res = await fetch("/tasks_list");
+    const tasks = await res.json();
+    const list = tasksList;
+    list.innerHTML = "";
+    if (!tasks || tasks.length === 0) {
+      list.innerHTML = '<div class="small muted" style="padding:12px">No tasks yet — add your first task above.</div>';
+    } else {
+      tasks.forEach(t => {
+        const el = document.createElement("div");
+        el.className = "task-item";
+        el.dataset.id = t.id;
+        const alarm = t.alarm_time || t.due_time || "";
+        const alarmText = alarm ? (new Date(alarm)).toLocaleString() + " • " : "";
+        el.innerHTML = `
+          <div>
+            <div class="task-title">${escapeHtml(t.title)}</div>
+            <div class="task-meta">${alarmText}${t.completed ? "Completed" : "Pending"}</div>
+          </div>
+          <div class="task-actions">
+            ${t.completed ? '<span class="small" style="color:#2ad19f">✔ Completed</span>' : `<button class="btn btn-complete" data-id="${t.id}">Complete</button>`}
+            <button class="btn btn-edit" data-id="${t.id}" data-title="${escapeHtml(t.title)}" data-time="${alarm ? formatForInput(alarm) : ''}">Modify</button>
+            <form method="POST" action="/delete_task/${t.id}" style="display:inline;"><button class="btn btn-delete" type="submit">Delete</button></form>
+          </div>
+        `;
+        list.appendChild(el);
+      });
+    }
+
+    checkTaskLimit(); // Show/hide notification
+  } catch(err) { console.error("Load tasks error", err); }
+}
+
+// Prevent adding tasks if limit reached
+taskForm.addEventListener("submit", (e) => {
+  if (checkTaskLimit()) {
+    e.preventDefault(); // stop form submission
+  }
+});
+
+function checkTaskLimit() {
+  const currentTasks = tasksList.querySelectorAll(".task-item").length;
+  const limit = 3;
+  if (currentTasks >= limit) {
+    taskLimitNotification.style.display = "block"; // show banner
+    return true;
+  } else {
+    taskLimitNotification.style.display = "none"; // hide banner
+    return false;
+  }
+}
+
+// Call this whenever tasks are loaded/refreshed
+fetchTasksAndRender = async () => {
+  try {
+    const res = await fetch("/tasks_list");
+    const tasks = await res.json();
+    const list = tasksList;
+    list.innerHTML = "";
+    if (!tasks || tasks.length === 0) {
+      list.innerHTML = '<div class="small muted" style="padding:12px">No tasks yet — add your first task above.</div>';
+    } else {
+      tasks.forEach(t => {
+        const el = document.createElement("div");
+        el.className = "task-item";
+        el.dataset.id = t.id;
+        const alarm = t.alarm_time || t.due_time || "";
+        const alarmText = alarm ? (new Date(alarm)).toLocaleString() + " • " : "";
+        el.innerHTML = `
+          <div>
+            <div class="task-title">${escapeHtml(t.title)}</div>
+            <div class="task-meta">${alarmText}${t.completed ? "Completed" : "Pending"}</div>
+          </div>
+          <div class="task-actions">
+            ${t.completed ? '<span class="small" style="color:#2ad19f">✔ Completed</span>' : `<button class="btn btn-complete" data-id="${t.id}">Complete</button>`}
+            <button class="btn btn-edit" data-id="${t.id}" data-title="${escapeHtml(t.title)}" data-time="${alarm ? formatForInput(alarm) : ''}">Modify</button>
+            <form method="POST" action="/delete_task/${t.id}" style="display:inline;"><button class="btn btn-delete" type="submit">Delete</button></form>
+          </div>
+        `;
+        list.appendChild(el);
+      });
+    }
+
+    checkTaskLimit(); // Show/hide top banner
+  } catch(err) {
+    console.error("Load tasks error", err);
+  }
+};
+
+</script>
+
+</body>
+</html>

@@ -1,6 +1,5 @@
-
 // ======================
-// Sam AI – Flow Mode Voice Assistant
+// Sam AI – Correct Flow Mode Voice Assistant
 // =======================
 
 let assistantActive = false;   // Whether assistant is "awake"
@@ -43,7 +42,6 @@ function normalizeCommand(input) {
       if (input.includes(v)) return main;
     }
   }
-  // Natural language fallback
   if (/open.*task/.test(input)) return "tasks";
   if (/open.*quest/.test(input)) return "quests";
   if (/open.*academic/.test(input) || /study/.test(input)) return "academics";
@@ -102,7 +100,7 @@ function handleAction(rawCommand) {
     return;
   }
 
-  // If not active, ignore everything except wake word
+  // Ignore commands if assistant is not active
   if (!assistantActive) return;
 
   switch (normalized) {
@@ -139,11 +137,11 @@ function handleAction(rawCommand) {
 
     case "terminate":
       assistantActive = false;
-      showFeedback("Assistant deactivated. Say 'Arise' again to reactivate.");
+      showFeedback("Assistant terminated. Click mic + say 'Arise' to activate again.");
       break;
 
     default:
-      showFeedback("Sorry, I didn’t catch that. Say 'help' for a list of commands.");
+      showFeedback("Sorry, I didn’t catch that. Say 'help' for commands.");
   }
 }
 
@@ -154,8 +152,10 @@ recognition.lang = "en-US";
 recognition.interimResults = false;
 recognition.continuous = true;
 
-// Restart listening automatically
-recognition.onend = () => { if (listening) recognition.start(); };
+// Restart mic only if listening is true
+recognition.onend = () => { 
+  if (listening) recognition.start(); 
+};
 
 recognition.onresult = (event) => {
   const command = event.results[event.results.length - 1][0].transcript;
@@ -173,11 +173,12 @@ micBtn.addEventListener("click", () => {
   if (!listening) {
     recognition.start();
     listening = true;
+    assistantActive = false; // always start inactive
     showFeedback("🎤 Mic activated. Say 'Arise' to start the assistant.");
   } else {
     recognition.stop();
     listening = false;
-    assistantActive = false; // reset assistant when mic is turned off
+    assistantActive = false;
     showFeedback("Mic turned off.");
   }
 });

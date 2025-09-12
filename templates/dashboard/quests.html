@@ -82,6 +82,9 @@
       <h1>Quests</h1>
       <div class="points-badge">XP: <span id="points-display">{{ user.points or 0 }}</span></div>
     </div>
+ <a href="{{ url_for('dice') }}">
+      <button type="button">🎲 Play Dice</button>
+    </a>
 
     <!-- Tabs -->
     <div class="quest-tabs">
@@ -105,7 +108,9 @@
       {% endfor %}
     </div>
   </div>
+    
 
+  
   <!-- Floating Voice Button -->
   <button id="micBtn" style="
     position: fixed; bottom: 20px; right: 20px; 

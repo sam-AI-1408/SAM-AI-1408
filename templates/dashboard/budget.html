@@ -1,0 +1,217 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>🛒 Budget Shopping Game</title>
+  <style>
+    body {
+      font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+      background: linear-gradient(135deg,#050615,#0f1630);
+      color: #eaf6ff;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      padding: 30px;
+      min-height: 100vh;
+      margin: 0;
+    }
+    h1 { margin-bottom: 10px; }
+    p { margin: 5px 0; }
+
+    .budget-box {
+      background: #0f1630;
+      padding: 15px 25px;
+      border-radius: 15px;
+      border: 2px solid #00d0ff;
+      font-size: 18px;
+      margin-bottom: 25px;
+      box-shadow: 0 0 15px rgba(0,208,255,0.3);
+    }
+
+    .store {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 20px;
+      justify-content: center;
+      margin-bottom: 20px;
+    }
+
+    .item {
+      background: #111b3a;
+      padding: 15px;
+      border-radius: 15px;
+      text-align: center;
+      width: 150px;
+      cursor: pointer;
+      border: 2px solid #00d0ff;
+      transition: transform 0.2s ease, background 0.2s ease;
+    }
+    .item:hover {
+      transform: translateY(-5px) scale(1.05);
+      background: #152452;
+    }
+    .item p { margin: 8px 0; }
+    .item .price {
+      font-weight: bold;
+      color: #00d0ff;
+    }
+
+    .score {
+      margin-top: 15px;
+      font-size: 18px;
+      font-weight: bold;
+    }
+
+    .purchases {
+      margin-top: 20px;
+      padding: 15px;
+      border: 2px dashed #00d0ff;
+      border-radius: 12px;
+      max-width: 400px;
+      text-align: center;
+    }
+
+    button {
+      margin-top: 20px;
+      padding: 10px 20px;
+      border: none;
+      border-radius: 12px;
+      background: #00d0ff;
+      color: #050615;
+      font-weight: bold;
+      cursor: pointer;
+    }
+    button:hover { transform: scale(1.05); }
+  </style>
+</head>
+<body>
+  <h1>🛒 Budget Shopping Game</h1>
+  <p>Try to manage your money wisely and see what you can buy!</p>
+
+  <div class="budget-box">
+    Budget: <span id="budget">0</span> coins
+  </div>
+  
+  <div class="store" id="store"></div>
+
+  <div class="score" id="message">💡 Choose items within your budget.</div>
+
+  <div class="purchases">
+    <h3>🛍 Your Purchases</h3>
+    <ul id="purchasedItems"></ul>
+  </div>
+
+  <button onclick="resetGame()">🔄 New Round</button>
+  <a href="{{ url_for('quests_page') }}">
+    <button>⬅ Back to Quests</button>
+  </a>
+
+  <script>
+    let budget = 0;
+    let purchased = [];
+    let items = [];
+
+    const itemPool = [
+      "🍎 Apple","🥩 Meat","👕 Shirt","🎮 Game","📱 Phone",
+      "👟 Shoes","🍕 Pizza","🎧 Headphones","📚 Book","🍫 Chocolate",
+      "🧸 Toy","💍 Ring","🎸 Guitar","🏀 Basketball","💻 Laptop"
+    ];
+
+    function randomInt(min, max) {
+      return Math.floor(Math.random() * (max - min + 1)) + min;
+    }
+
+    function generateItems() {
+      const storeDiv = document.getElementById("store");
+      storeDiv.innerHTML = "";
+      items = [];
+
+      // Pick 4 random items
+      for (let i = 0; i < 4; i++) {
+        const name = itemPool[randomInt(0, itemPool.length - 1)];
+        const cost = randomInt(20, 120); // item costs vary
+        items.push({name, cost});
+      }
+
+      items.forEach(item => {
+        const div = document.createElement("div");
+        div.className = "item";
+        div.innerHTML = `<p>${item.name}</p><p class="price">${item.cost} coins</p>`;
+        div.onclick = () => buyItem(item.name, item.cost);
+        storeDiv.appendChild(div);
+      });
+    }
+
+    function buyItem(item, cost) {
+      if (budget >= cost) {
+        budget -= cost;
+        purchased.push(item);
+        document.getElementById("budget").textContent = budget;
+        document.getElementById("message").textContent = 
+          `✅ You bought ${item} for ${cost} coins.`;
+        updatePurchasedList();
+      } else {
+        document.getElementById("message").textContent = 
+          `❌ Not enough coins to buy ${item}!`;
+      }
+
+      checkGameStatus();
+    }
+
+    function updatePurchasedList() {
+      const list = document.getElementById("purchasedItems");
+      list.innerHTML = "";
+      purchased.forEach(p => {
+        const li = document.createElement("li");
+        li.textContent = p;
+        list.appendChild(li);
+      });
+    }
+
+    function checkGameStatus() {
+      // Perfect win
+      if (budget === 0) {
+        document.getElementById("message").textContent = 
+          "🏆 Perfect Round! You spent your entire budget!";
+        disableStore();
+        return;
+      }
+
+      // If no items affordable anymore
+      const affordable = items.some(item => item.cost <= budget);
+      if (!affordable) {
+        if (budget <= 10) {
+          document.getElementById("message").textContent = 
+            "🎉 You Win! Great budgeting!";
+        } else {
+          document.getElementById("message").textContent = 
+            "💸 You Lose! Too much money left unused.";
+        }
+        disableStore();
+      }
+    }
+
+    function disableStore() {
+      document.querySelectorAll(".item").forEach(div => {
+        div.onclick = null;
+        div.style.opacity = "0.5";
+        div.style.cursor = "not-allowed";
+      });
+    }
+
+    function resetGame() {
+      budget = randomInt(80, 200); // new random budget
+      purchased = [];
+      document.getElementById("budget").textContent = budget;
+      document.getElementById("message").textContent = 
+        "💡 Choose items within your budget.";
+      updatePurchasedList();
+      generateItems();
+    }
+
+    // Start game on load
+    resetGame();
+  </script>
+</body>
+</html>

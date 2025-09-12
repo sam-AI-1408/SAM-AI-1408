@@ -1,0 +1,122 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>💰 Money Quiz Game</title>
+<style>
+body {
+  font-family: Arial, sans-serif;
+  background: linear-gradient(135deg,#050615,#0f1630);
+  color: #00d0ff;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  min-height: 100vh;
+  margin: 0;
+  padding: 20px;
+}
+h1 { margin-bottom: 10px; }
+.quiz-box {
+  background: #0f1630;
+  padding: 20px;
+  border-radius: 15px;
+  border: 2px solid #00d0ff;
+  width: 100%;
+  max-width: 500px;
+  text-align: center;
+}
+button {
+  padding: 10px 20px;
+  border-radius: 12px;
+  border: none;
+  background: #00d0ff;
+  color: #050615;
+  font-weight: bold;
+  cursor: pointer;
+  margin: 8px 0;
+  width: 80%;
+  transition: transform 0.2s ease;
+}
+button:hover { transform: scale(1.05); }
+.score { margin-top: 15px; font-weight: bold; }
+</style>
+</head>
+<body>
+<h1>💰 Money Quiz Game</h1>
+<div class="quiz-box" id="quiz-box">
+  <p id="question">Loading question...</p>
+  <div id="answers"></div>
+</div>
+
+<div class="score" id="score"></div>
+
+<a href="{{ url_for('quests_page') }}">
+  <button>⬅ Back to Quests</button>
+</a>
+
+<script>
+const questions = [
+  {
+    q: "Which is a good way to save money?",
+    options: ["Spend on sales", "Use a budget", "Ignore bills", "Buy lottery tickets"],
+    answer: 1
+  },
+  {
+    q: "What is interest?",
+    options: ["Money you earn or pay on savings/loans","A type of coin","A bank branch","None"],
+    answer: 0
+  },
+  {
+    q: "What is a budget?",
+    options: ["Plan for spending and saving","A type of wallet","A shopping app","A bank account"],
+    answer: 0
+  },
+  {
+    q: "Why save money?",
+    options: ["For emergencies","For parties","To buy everything","To spend immediately"],
+    answer: 0
+  }
+];
+
+let current = 0;
+let score = 0;
+
+function loadQuestion() {
+  const q = questions[current];
+  document.getElementById("question").textContent = q.q;
+
+  const answersDiv = document.getElementById("answers");
+  answersDiv.innerHTML = "";
+  q.options.forEach((opt, idx) => {
+    const btn = document.createElement("button");
+    btn.textContent = opt;
+    btn.onclick = () => checkAnswer(idx);
+    answersDiv.appendChild(btn);
+  });
+  document.getElementById("score").textContent = `Score: ${score}`;
+}
+
+function checkAnswer(idx) {
+  if(idx === questions[current].answer) {
+    score += 10; // points per correct answer
+    alert("✅ Correct!");
+  } else {
+    score -= 5;
+    alert("❌ Wrong!");
+  }
+  current++;
+  if(current < questions.length) {
+    loadQuestion();
+  } else {
+    document.getElementById("quiz-box").innerHTML = `<h3>Game Over! Your final score: ${score}</h3>`;
+    document.getElementById("score").textContent = "";
+  }
+}
+
+// Start game
+loadQuestion();
+</script>
+</body>
+</html>

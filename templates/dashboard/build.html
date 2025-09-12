@@ -1,0 +1,198 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>💰 Budget Builder Game</title>
+  <style>
+    body {
+      font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+      background: linear-gradient(135deg, #050615, #0f1630);
+      color: #eaf6ff;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      padding: 30px;
+      min-height: 100vh;
+      margin: 0;
+    }
+
+    h1 { margin-bottom: 10px; }
+    p { margin: 5px 0; }
+
+    .budget-box {
+      background: #0f1630;
+      padding: 15px 25px;
+      border-radius: 15px;
+      border: 2px solid #00d0ff;
+      font-size: 18px;
+      margin-bottom: 25px;
+      box-shadow: 0 0 15px rgba(0,208,255,0.3);
+    }
+
+    .categories {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 20px;
+      justify-content: center;
+      margin-bottom: 20px;
+    }
+
+    .category {
+      background: #111b3a;
+      padding: 15px;
+      border-radius: 15px;
+      text-align: center;
+      width: 150px;
+      cursor: pointer;
+      border: 2px solid #00d0ff;
+      transition: transform 0.2s ease, background 0.2s ease;
+    }
+    .category:hover {
+      transform: translateY(-5px) scale(1.05);
+      background: #152452;
+    }
+
+    .category .amount {
+      font-weight: bold;
+      color: #00d0ff;
+      margin-top: 5px;
+    }
+
+    .score {
+      margin-top: 15px;
+      font-size: 18px;
+      font-weight: bold;
+    }
+
+    .allocations {
+      margin-top: 20px;
+      padding: 15px;
+      border: 2px dashed #00d0ff;
+      border-radius: 12px;
+      max-width: 400px;
+      text-align: center;
+    }
+
+    button {
+      margin-top: 20px;
+      padding: 10px 20px;
+      border: none;
+      border-radius: 12px;
+      background: #00d0ff;
+      color: #050615;
+      font-weight: bold;
+      cursor: pointer;
+    }
+    button:hover { transform: scale(1.05); }
+  </style>
+</head>
+<body>
+  <h1>💰 Budget Builder Game</h1>
+  <p>Allocate your budget wisely across different categories!</p>
+
+  <div class="budget-box">
+    Total Budget: <span id="budget">0</span> coins
+  </div>
+
+  <div class="categories" id="categories"></div>
+
+  <div class="score" id="message">💡 Click on a category to allocate coins.</div>
+
+  <div class="allocations">
+    <h3>📊 Your Allocations</h3>
+    <ul id="allocationList"></ul>
+  </div>
+
+  <button onclick="resetGame()">🔄 New Round</button>
+  <a href="{{ url_for('quests_page') }}">
+    <button>⬅ Back to Quests</button>
+  </a>
+
+  <script>
+    let budget = 0;
+    let allocations = [];
+    const categoryPool = ["Food", "Entertainment", "Transport", "Education", "Shopping", "Health"];
+    const categoriesEl = document.getElementById("categories");
+
+    function randomInt(min, max) {
+      return Math.floor(Math.random() * (max - min + 1)) + min;
+    }
+
+    function generateCategories() {
+      categoriesEl.innerHTML = "";
+      allocations = [];
+
+      // Assign random allocation values
+      categoryPool.forEach(cat => {
+        const amount = randomInt(10, 50);
+        allocations.push({category: cat, amountAllocated: 0, target: amount});
+
+        const div = document.createElement("div");
+        div.className = "category";
+        div.innerHTML = `<p>${cat}</p><p class="amount">0 / ${amount}</p>`;
+        div.onclick = () => allocate(cat);
+        categoriesEl.appendChild(div);
+      });
+    }
+
+    function allocate(catName) {
+      const cat = allocations.find(c => c.category === catName);
+      if (budget <= 0) {
+        document.getElementById("message").textContent = "❌ No more coins left!";
+        return;
+      }
+
+      if (cat.amountAllocated >= cat.target) {
+        document.getElementById("message").textContent = `✅ ${catName} is fully funded!`;
+        return;
+      }
+
+      // Allocate 5 coins at a time
+      const allocateAmount = Math.min(5, budget, cat.target - cat.amountAllocated);
+      cat.amountAllocated += allocateAmount;
+      budget -= allocateAmount;
+
+      updateDisplay();
+      checkWinLoss();
+    }
+
+    function updateDisplay() {
+      document.getElementById("budget").textContent = budget;
+      allocations.forEach(cat => {
+        const div = [...categoriesEl.children].find(d => d.firstChild.textContent === cat.category);
+        div.querySelector(".amount").textContent = `${cat.amountAllocated} / ${cat.target}`;
+      });
+
+      const list = document.getElementById("allocationList");
+      list.innerHTML = "";
+      allocations.forEach(cat => {
+        const li = document.createElement("li");
+        li.textContent = `${cat.category}: ${cat.amountAllocated} / ${cat.target}`;
+        list.appendChild(li);
+      });
+    }
+
+    function checkWinLoss() {
+      const allFunded = allocations.every(c => c.amountAllocated === c.target);
+      const anyLeft = budget === 0;
+      if (allFunded) {
+        document.getElementById("message").textContent = "🎉 Congratulations! Budget perfectly allocated!";
+      } else if (anyLeft && !allFunded) {
+        document.getElementById("message").textContent = "⚠️ You ran out of coins! Try again!";
+      }
+    }
+
+    function resetGame() {
+      budget = randomInt(50, 120);
+      document.getElementById("message").textContent = "💡 Click on a category to allocate coins.";
+      document.getElementById("budget").textContent = budget;
+      generateCategories();
+      updateDisplay();
+    }
+
+    // Start game
+    resetGame();
+  </script>
+</body>
+</html>

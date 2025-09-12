@@ -179,6 +179,10 @@
       <div class="right-card">
         <h3>Session preview & info</h3>
         <div class="small">When a session completes, confirm it and points will be awarded & stored.</div>
+                  <div style="margin-top:12px;">
+                     <a href="{{ url_for('shufflecard') }}"></a>
+  <button class="btn" id="openShuffleCard">🎴 Shuffle Cards</button>
+</div>
 
         <div style="margin-top:12px;">
           <div class="small">Active scheduled sessions:</div>
@@ -187,12 +191,13 @@
       </div>
     </div>
   </div>
+  
 
   <!-- AUDIO -->
   <audio id="alarmSound" src="{{ url_for('static', filename='alarm-301729.mp3') }}" preload="auto"></audio>
 
   <!-- MODALS -->
-
+  
   <!-- Step 1: Duration (hours/minutes) -->
   <div class="overlay" id="stepDuration">
     <div class="modal">
@@ -294,6 +299,11 @@ document.querySelectorAll("button").forEach(btn => {
     clickSound.play();
   });
 });
+
+document.getElementById('openShuffleCard').onclick = () => {
+  window.location.href = '/shufflecard'; // or correct URL path
+};
+
 </script>
 
 <script>

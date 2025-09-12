@@ -1,0 +1,217 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Spin Wheel – SAM AI</title>
+<style>
+  body {
+    margin: 0;
+    font-family: 'Segoe UI', sans-serif;
+    background: #0a0f1c;
+    color: #eaf6ff;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    height: 100vh;
+  }
+
+  h1 {
+    margin-bottom: 15px;
+    font-size: 28px;
+    color: #4dabf7;
+    text-shadow: 0 0 8px #1a73e8;
+  }
+
+  .wheel-container {
+    position: relative;
+    width: 400px;
+    height: 400px;
+    margin: 20px auto;
+  }
+
+  canvas {
+    border-radius: 50%;
+    box-shadow: 0 0 20px rgba(77,171,247,0.6);
+  }
+
+  .spin-btn {
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    width: 90px;
+    height: 90px;
+    border-radius: 50%;
+    background: linear-gradient(145deg,#1a73e8,#4dabf7);
+    color: #fff;
+    font-size: 18px;
+    font-weight: bold;
+    border: none;
+    cursor: pointer;
+    box-shadow: 0 0 10px rgba(77,171,247,0.8);
+    transition: 0.3s;
+  }
+
+  .spin-btn:hover {
+    background: linear-gradient(145deg,#4dabf7,#1a73e8);
+    box-shadow: 0 0 20px rgba(77,171,247,1);
+  }
+
+  .result-box {
+    margin-top: 20px;
+    font-size: 20px;
+    padding: 10px 20px;
+    border: 1px solid #4dabf7;
+    border-radius: 12px;
+    background: #11182d;
+    min-height: 50px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    box-shadow: 0 0 10px rgba(77,171,247,0.3);
+    transition: all 0.3s ease;
+  }
+
+  .done-btn {
+    margin-top: 15px;
+    padding: 10px 20px;
+    border-radius: 10px;
+    font-size: 18px;
+    font-weight: bold;
+    cursor: pointer;
+    background: #28a745;
+    color: white;
+    border: none;
+    display: none;
+    box-shadow: 0 0 10px rgba(40,167,69,0.6);
+    transition: 0.3s;
+  }
+
+  .done-btn:hover {
+    background: #218838;
+    box-shadow: 0 0 20px rgba(40,167,69,1);
+  }
+
+  .back-btn {
+    margin-top: 10px;
+    padding: 10px 20px;
+    border-radius: 10px;
+    font-size: 18px;
+    font-weight: bold;
+    cursor: pointer;
+    background: #007bff;
+    color: white;
+    border: none;
+    box-shadow: 0 0 10px rgba(0,123,255,0.6);
+    transition: 0.3s;
+    text-decoration: none;
+    display: inline-block;
+  }
+
+  .back-btn:hover {
+    background: #0056b3;
+    box-shadow: 0 0 20px rgba(0,123,255,1);
+  }
+
+</style>
+</head>
+<body>
+  <h1>🎡 Spin the Fitness Wheel</h1>
+
+  <div class="wheel-container">
+    <canvas id="wheelCanvas" width="400" height="400"></canvas>
+    <button class="spin-btn" id="spinBtn">SPIN</button>
+  </div>
+
+  <div class="result-box" id="resultBox">Click SPIN to get your exercise</div>
+
+  <button class="done-btn" id="doneBtn">✅ Done</button>
+  <a href="{{ url_for('quests_page') }}" class="back-btn">⬅ Back to Tasks</a>
+
+  <script>
+    const wheelCanvas = document.getElementById('wheelCanvas');
+    const ctx = wheelCanvas.getContext('2d');
+    const spinBtn = document.getElementById('spinBtn');
+    const resultBox = document.getElementById('resultBox');
+    const doneBtn = document.getElementById('doneBtn');
+
+    const segments = [
+      'Push-ups', 'Squats', 'Plank', 'Jumping Jacks', 
+      'Lunges', 'Burpees', 'Sit-ups', 'Yoga Stretch'
+    ];
+    const colors = ['#1abc9c','#2ecc71','#3498db','#9b59b6','#e67e22','#e74c3c','#f1c40f','#e84393'];
+
+    const wheelRadius = 200;
+    let angle = 0;
+    let spinning = false;
+    let spinVelocity = 0;
+
+    function drawWheel() {
+      const step = 2 * Math.PI / segments.length;
+      for (let i = 0; i < segments.length; i++) {
+        ctx.beginPath();
+        ctx.moveTo(200,200);
+        ctx.arc(200,200,wheelRadius, step*i, step*(i+1));
+        ctx.fillStyle = colors[i];
+        ctx.fill();
+        ctx.save();
+
+        ctx.translate(200,200);
+        ctx.rotate(step*i + step/2);
+        ctx.textAlign = 'right';
+        ctx.fillStyle = '#fff';
+        ctx.font = 'bold 16px Arial';
+        ctx.fillText(segments[i], wheelRadius - 10, 5);
+        ctx.restore();
+      }
+    }
+
+    function animateWheel() {
+      ctx.clearRect(0,0,400,400);
+      ctx.save();
+      ctx.translate(200,200);
+      ctx.rotate(angle);
+      ctx.translate(-200,-200);
+      drawWheel();
+      ctx.restore();
+    }
+
+    function spin() {
+      if (spinning) return;
+      spinning = true;
+      spinVelocity = Math.random()*0.3 + 0.3; // random start speed
+      const deceleration = 0.995; // slows down gradually
+
+      const spinningAnimation = () => {
+        spinVelocity *= deceleration;
+        angle += spinVelocity;
+        animateWheel();
+
+        if (spinVelocity > 0.002) {
+          requestAnimationFrame(spinningAnimation);
+        } else {
+          spinning = false;
+          showResult();
+        }
+      }
+      spinningAnimation();
+    }
+
+    function showResult() {
+      const normalizedAngle = angle % (2*Math.PI);
+      const segmentAngle = 2*Math.PI / segments.length;
+      const index = Math.floor((2*Math.PI - normalizedAngle) / segmentAngle) % segments.length;
+      const challenge = segments[index];
+      resultBox.textContent = `🎯 Your challenge: ${challenge}`;
+      doneBtn.style.display = 'inline-block';
+      // optional popup effect
+      resultBox.style.transform = 'scale(1.2)';
+      setTimeout(()=>{ resultBox.style.transform='scale(1)'; }, 300);
+    }
+
+    spinBtn.addEventListener('click', spin);
+  </script>
+</body>
+</html>

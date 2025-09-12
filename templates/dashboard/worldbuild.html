@@ -1,0 +1,132 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>World Build Game</title>
+<style>
+  body {
+    font-family: 'Arial', sans-serif;
+    background: linear-gradient(135deg,#050615,#00d0ff);
+    color: #fff;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    min-height: 100vh;
+    margin: 0;
+    padding: 20px;
+  }
+
+  h1 { margin-bottom: 15px; font-size: 32px; text-align: center; }
+  .choices { margin: 15px 0; display: flex; flex-wrap: wrap; gap: 10px; justify-content: center; }
+  .choice {
+    padding: 12px 20px;
+    border: none; border-radius: 12px;
+    background: #00d0ff; color: #050615;
+    font-weight: bold; cursor: pointer;
+    transition: transform 0.2s;
+  }
+  .choice:hover { transform: scale(1.05); }
+  #story {
+    margin-top: 20px; padding: 20px;
+    background: rgba(0,0,0,0.4);
+    border-radius: 15px; max-width: 500px;
+    text-align: center; font-size: 18px;
+  }
+  button {
+    margin-top: 15px;
+    padding: 12px 25px;
+    border: none; border-radius: 12px;
+    background: #00d0ff; color: #050615;
+    font-weight: bold; cursor: pointer;
+    transition: transform 0.2s;
+  }
+  button:hover { transform: scale(1.05); }
+</style>
+</head>
+<body>
+
+<h1>🌍 World Build Game</h1>
+<div id="game">
+  <p id="question">Choose your terrain:</p>
+  <div class="choices" id="choices"></div>
+</div>
+
+<div id="story" style="display:none;"></div>
+
+<div>
+  <button id="restartBtn" style="display:none;">Restart</button>
+  <button id="backBtn">← Back to Academics</button>
+</div>
+
+<script>
+const questions = [
+  { text: "Choose your terrain:", options: ["🏞️ Forest", "🏜️ Desert", "🌊 Ocean", "⛰️ Mountains"] },
+  { text: "Choose your civilization:", options: ["👩‍🌾 Farmers", "⚔️ Warriors", "🔬 Scientists", "🧭 Explorers"] },
+  { text: "Choose a special feature:", options: ["✨ Magic", "🤖 Technology", "☮️ Peace", "🔥 Chaos"] }
+];
+
+let answers = [];
+let currentStep = 0;
+
+const questionEl = document.getElementById('question');
+const choicesEl = document.getElementById('choices');
+const storyEl = document.getElementById('story');
+const restartBtn = document.getElementById('restartBtn');
+const backBtn = document.getElementById('backBtn');
+
+function loadQuestion(){
+  const q = questions[currentStep];
+  questionEl.textContent = q.text;
+  choicesEl.innerHTML = '';
+  q.options.forEach(opt => {
+    const btn = document.createElement('button');
+    btn.className = 'choice';
+    btn.textContent = opt;
+    btn.onclick = () => selectOption(opt);
+    choicesEl.appendChild(btn);
+  });
+}
+
+function selectOption(option){
+  answers.push(option);
+  currentStep++;
+  if(currentStep < questions.length){
+    loadQuestion();
+  } else {
+    showStory();
+  }
+}
+
+function showStory(){
+  document.getElementById('game').style.display = 'none';
+  storyEl.style.display = 'block';
+  restartBtn.style.display = 'inline-block';
+
+  const [terrain, civ, feature] = answers;
+  storyEl.innerHTML = `
+    <h2>Your World 🌍</h2>
+    <p>You built a land of <b>${terrain}</b>, ruled by <b>${civ}</b>, where <b>${feature}</b> shapes destiny.</p>
+    <p>✨ Adventure begins in your new world!</p>
+  `;
+}
+
+restartBtn.addEventListener('click', () => {
+  answers = [];
+  currentStep = 0;
+  document.getElementById('game').style.display = 'block';
+  storyEl.style.display = 'none';
+  restartBtn.style.display = 'none';
+  loadQuestion();
+});
+
+backBtn.addEventListener('click', () => {
+  window.location.href = '/academics';
+});
+
+// Start game
+loadQuestion();
+</script>
+
+</body>
+</html>

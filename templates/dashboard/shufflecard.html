@@ -1,0 +1,161 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Shuffle Card Game</title>
+<style>
+  body {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    height: 100vh;
+    background: linear-gradient(135deg,#00d0ff,#050615);
+    font-family: 'Arial', sans-serif;
+    overflow: hidden;
+    margin: 0;
+  }
+
+  .container {
+    display: flex;
+    gap: 20px;
+    perspective: 1500px; /* strong 3D perspective */
+    flex-wrap: wrap;
+    justify-content: center;
+  }
+
+  .card {
+    width: 120px;
+    height: 160px;
+    border-radius: 12px;
+    transform-style: preserve-3d;
+    transition: transform 0.8s cubic-bezier(0.68, -0.55, 0.265, 1.55), box-shadow 0.3s ease;
+    box-shadow: 0 10px 25px rgba(0,0,0,0.4);
+    cursor: pointer;
+    position: relative;
+    opacity: 0;
+    transform: rotateY(180deg) translateY(50px);
+  }
+
+  .card:hover { transform: scale(1.15) rotateY(0deg); }
+
+  .card.flipped {
+    animation: flipReveal 0.8s forwards;
+  }
+
+  @keyframes flipReveal {
+    0% { transform: rotateY(0deg) scale(1); box-shadow: 0 10px 25px rgba(0,0,0,0.4); }
+    50% { transform: rotateY(90deg) scale(1.2); box-shadow: 0 20px 35px rgba(0,0,0,0.5); }
+    100% { transform: rotateY(180deg) scale(1); box-shadow: 0 10px 25px rgba(0,0,0,0.4); }
+  }
+
+  .front, .back {
+    position: absolute;
+    width: 100%;
+    height: 100%;
+    border-radius: 12px;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    font-weight: bold;
+    font-size: 18px;
+    backface-visibility: hidden;
+    color: #00d0ff;
+  }
+
+  .back { background: #0a1224; }
+  .front { background: #11182d; transform: rotateY(180deg); }
+
+  #shuffleBtn {
+    position: absolute;
+    top: 20px;
+    left: 50%;
+    transform: translateX(-50%);
+    padding: 12px 24px;
+    border: none;
+    border-radius: 10px;
+    background: #00d0ff;
+    color: #050615;
+    font-weight: bold;
+    cursor: pointer;
+    box-shadow: 0 4px 15px rgba(0,0,0,0.3);
+    transition: transform 0.3s ease;
+    z-index: 10;
+  }
+
+  #shuffleBtn:hover { transform: translateX(-50%) scale(1.05); }
+</style>
+</head>
+<body>
+
+<button id="shuffleBtn">🔀 Shuffle Cards</button>
+
+<div class="container" id="cardContainer"></div>
+
+<script>
+const games = [
+  {name: 'Quiz Game', url: '/dashboard/quiz'},
+  {name: 'World Build', url: '/worldbuild'},
+  {name: 'Memory Test', url: '/dashboard/memory'},
+  {name: 'Logic Thinking', url: '/logic'}
+];
+
+const container = document.getElementById('cardContainer');
+
+function shuffleArray(array) {
+  for (let i = array.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [array[i], array[j]] = [array[j], array[i]];
+  }
+  return array;
+}
+
+function createCards() {
+  container.innerHTML = '';
+  const shuffledGames = shuffleArray([...games]);
+  shuffledGames.forEach((game, index) => {
+    const card = document.createElement('div');
+    card.className = 'card';
+    card.dataset.url = game.url;
+
+    const front = document.createElement('div');
+    front.className = 'front';
+    front.textContent = game.name;
+
+    const back = document.createElement('div');
+    back.className = 'back';
+    back.textContent = '🎴';
+
+    card.appendChild(front);
+    card.appendChild(back);
+
+    // Animate cards in sequentially
+    setTimeout(() => {
+      card.style.transition = 'transform 0.8s cubic-bezier(0.68, -0.55, 0.265, 1.55), opacity 0.6s ease';
+      card.style.opacity = 1;
+      card.style.transform = 'rotateY(0deg) translateY(0)';
+    }, index * 150);
+
+    // Flip with reveal animation on click
+    card.addEventListener('click', () => {
+      card.classList.add('flipped');
+      setTimeout(() => {
+        window.location.href = game.url;
+      }, 900); // allow reveal animation to finish
+    });
+
+    container.appendChild(card);
+  });
+}
+
+// initial load
+createCards();
+
+// shuffle button
+document.getElementById('shuffleBtn').addEventListener('click', () => {
+  createCards();
+});
+</script>
+
+</body>
+</html>

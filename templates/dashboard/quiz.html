@@ -1,0 +1,161 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Professional Quiz Game</title>
+<style>
+  body {
+    display: flex; justify-content: center; align-items: center;
+    height: 100vh; margin:0;
+    background: linear-gradient(135deg,#050615,#0a0f1c);
+    font-family: 'Arial', sans-serif;
+    color: #00d0ff;
+  }
+  .quiz-container {
+    background: #11182d;
+    padding: 40px;
+    border-radius: 15px;
+    width: 450px;
+    box-shadow: 0 8px 25px rgba(0,0,0,0.6);
+    text-align: center;
+  }
+  .question {
+    font-size: 22px;
+    margin-bottom: 25px;
+    min-height: 70px;
+    color: #00d0ff;
+  }
+  .options {
+    display: flex; flex-direction: column; gap: 15px;
+  }
+  .option {
+    padding: 12px 18px;
+    border-radius: 12px;
+    background: #0f1630;
+    cursor: pointer;
+    transition: all 0.3s;
+    font-weight: 600;
+  }
+  .option:hover {
+    transform: scale(1.05);
+    background: #00d0ff22;
+  }
+  .option.correct {
+    background: #00ff88;
+    color: #050615;
+  }
+  .option.wrong {
+    background: #ff5566;
+    color: #050615;
+  }
+  .next-btn, #backBtn {
+    margin-top: 25px;
+    padding: 12px 20px;
+    border:none;
+    border-radius: 12px;
+    background: #00d0ff;
+    color:#050615;
+    cursor:pointer;
+    font-weight:bold;
+    font-size: 16px;
+  }
+  #backBtn {
+    background: #ff8fa3;
+  }
+  .score {
+    font-size: 24px;
+    margin-top: 20px;
+    color: #00ff88;
+  }
+</style>
+</head>
+<body>
+
+<div class="quiz-container" id="quizContainer">
+  <div class="question" id="question">Question text</div>
+  <div class="options" id="options"></div>
+  <button class="next-btn" id="nextBtn" style="display:none;">Next →</button>
+  <div class="score" id="score" style="display:none;"></div>
+  <button class="next-btn" id="backBtn" style="display:none;">← Back to Academics</button>
+</div>
+
+<script>
+const quizData = [
+  { question: "Which element has the atomic number 82?", options: ["Lead","Gold","Mercury","Bismuth"], answer: "Lead" },
+  { question: "In which year did the Titanic sink?", options: ["1912","1905","1915","1920"], answer: "1912" },
+  { question: "Who wrote 'Crime and Punishment'?", options: ["Tolstoy","Dostoevsky","Chekhov","Pushkin"], answer: "Dostoevsky" },
+  { question: "What is the derivative of sin(x)?", options: ["cos(x)","-sin(x)","-cos(x)","tan(x)"], answer: "cos(x)" },
+  { question: "Which gas is most abundant in Earth's atmosphere?", options: ["Oxygen","Nitrogen","Carbon Dioxide","Argon"], answer: "Nitrogen" },
+  { question: "Which country won the first FIFA World Cup?", options: ["Brazil","Uruguay","Italy","Germany"], answer: "Uruguay" },
+  { question: "E = mc² is an equation formulated by?", options: ["Newton","Einstein","Tesla","Bohr"], answer: "Einstein" },
+  { question: "Which planet has the fastest orbit around the Sun?", options: ["Mercury","Venus","Earth","Mars"], answer: "Mercury" }
+];
+
+let currentQuestion = 0;
+let score = 0;
+
+const questionEl = document.getElementById('question');
+const optionsEl = document.getElementById('options');
+const nextBtn = document.getElementById('nextBtn');
+const scoreEl = document.getElementById('score');
+const backBtn = document.getElementById('backBtn');
+
+function loadQuestion() {
+  nextBtn.style.display = 'none';
+  optionsEl.innerHTML = '';
+  const q = quizData[currentQuestion];
+  questionEl.textContent = q.question;
+  q.options.forEach(opt => {
+    const btn = document.createElement('div');
+    btn.className = 'option';
+    btn.textContent = opt;
+    btn.addEventListener('click', () => selectAnswer(btn, q.answer));
+    optionsEl.appendChild(btn);
+  });
+}
+
+function selectAnswer(btn, correctAnswer) {
+  const allOptions = document.querySelectorAll('.option');
+  allOptions.forEach(o => o.style.pointerEvents = 'none');
+  
+  if(btn.textContent === correctAnswer){
+    btn.classList.add('correct');
+    score++;
+  } else {
+    btn.classList.add('wrong');
+    allOptions.forEach(o => {
+      if(o.textContent === correctAnswer) o.classList.add('correct');
+    });
+  }
+  nextBtn.style.display = 'inline-block';
+}
+
+nextBtn.addEventListener('click', () => {
+  currentQuestion++;
+  if(currentQuestion < quizData.length){
+    loadQuestion();
+  } else {
+    showScore();
+  }
+});
+
+function showScore(){
+  questionEl.style.display = 'none';
+  optionsEl.style.display = 'none';
+  nextBtn.style.display = 'none';
+  scoreEl.style.display = 'block';
+  scoreEl.textContent = `You scored ${score} / ${quizData.length}`;
+  
+  backBtn.style.display = 'inline-block';
+  backBtn.addEventListener('click', () => {
+    window.location.href = '/academics'; // redirect to Academics
+  });
+}
+
+// Initial load
+loadQuestion();
+</script>
+
+</body>
+</html>

@@ -885,7 +885,7 @@ def developers():
             "name": "S.Abdul Hameed",
             "role": "Backend Developer",
             "description": "Handles database & APIs.",
-            "photo": "dev1.jpg.jpeg"
+            "photo": ".jpg.jpeg"
         },
         {
             "id": 3,
@@ -899,7 +899,7 @@ def developers():
             "name": "M.Yashwanth Kumar",
             "role": "Tester",
             "description": "Ensures everything works smoothly.",
-            "photo": "dev2.jpg.jpeg"
+            "photo": ".jpg.jpeg"
         },
     ]
 
@@ -932,6 +932,105 @@ def ask_ai():
                              headers=headers, json=data)
 
     return jsonify(response.json())
+
+
+@app.route("/dashboard/spinwheel")
+@login_required
+def spinwheel_page():
+    return render_template("dashboard/spinwheel.html")
+
+@app.route("/spinwheel/complete", methods=["POST"])
+@login_required
+def spinwheel_complete():
+    data = request.get_json()
+    exercise = data.get("exercise")
+    # Update user's points / XP in DB
+    current_user.points += 10  # example
+    db.session.commit()
+    return jsonify({"success": True, "xp": 10})
+
+# ------------------ new route ------------------
+@app.route('/shufflecard')
+@login_required
+def shufflecard():
+    return render_template('dashboard/shufflecard.html')
+
+@app.route("/dashboard/quiz")
+@login_required
+def quiz_page():
+    return render_template("dashboard/quiz.html")
+
+@app.route("/logic")
+@login_required
+def logic():
+    return render_template("dashboard/logic.html")
+
+@app.route('/dashboard/memory')
+def memory():
+    return render_template('dashboard/memory.html')
+
+@app.route('/worldbuild')
+def worldbuild():
+    return render_template('dashboard/worldbuild.html') 
+
+@app.route('/dice')
+def dice():
+    return render_template('dashboard/dice.html')  # or just 'dice.html' if in templates/
+ 
+@app.route("/coin")
+@login_required
+def coin_page():
+    return render_template("dashboard/coin.html")
+
+# API route to save XP
+@app.route("/update_score", methods=["POST"])
+@login_required
+def update_score():
+    data = request.get_json()
+    score = data.get("score", 0)
+
+    # Add score to user points
+    current_user.points += score
+    # Save to database
+    db.session.commit()
+
+    return jsonify({"success": True, "new_points": current_user.points})
+
+@app.route("/budget")
+@login_required
+def budget_page():
+    return render_template("dashboard/budget.html")
+@app.route("/market")
+@login_required
+def market_page():
+    return render_template("dashboard/market.html") 
+
+@app.route('/save')
+@login_required
+def save_or_spend():
+
+    return render_template("dashboard/save.html", user=current_user)
+
+@app.route('/reset_save_game')
+@login_required
+def reset_save_game():
+
+    current_user.bank = 0
+    current_user.budget = 0
+    return render_template("save.html", user=current_user)
+
+@app.route('/money')
+@login_required
+def money_page():
+    
+    # You could also pass user-specific data if needed
+    return render_template("dashboard/money.html", user=current_user)
+
+@app.route('/build')
+@login_required
+def build_page():
+    
+    return render_template("dashboard/build.html", user=current_user)
 # ----------------- STARTUP -----------------
 if __name__ == "__main__":
     with app.app_context():

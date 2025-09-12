@@ -1,0 +1,126 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Dice Game</title>
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      background: linear-gradient(135deg,#050615,#0f1630);
+      color: #00d0ff;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      min-height: 100vh;
+      margin: 0;
+    }
+    h1 { margin-bottom: 20px; }
+    .dice {
+      font-size: 100px;
+      margin: 20px;
+      transition: transform 0.2s ease;
+    }
+    button {
+      padding: 12px 25px;
+      border: none;
+      border-radius: 12px;
+      background: #00d0ff;
+      color: #050615;
+      font-weight: bold;
+      cursor: pointer;
+      margin: 10px;
+    }
+    button:hover { transform: scale(1.05); }
+    a { text-decoration: none; }
+
+    /* Popup */
+    #popup {
+      position: fixed;
+      bottom: 100px;
+      background: #0f1630;
+      border: 2px solid #00d0ff;
+      padding: 15px 20px;
+      border-radius: 12px;
+      font-weight: bold;
+      display: none;
+      color: #00d0ff;
+      box-shadow: 0 0 15px rgba(0,208,255,0.5);
+      animation: fadeIn 0.3s ease;
+    }
+    @keyframes fadeIn {
+      from { opacity: 0; transform: translateY(20px); }
+      to { opacity: 1; transform: translateY(0); }
+    }
+  </style>
+</head>
+<body>
+  <h1>🎲 Dice Game</h1>
+  <div id="dice" class="dice">🎲</div>
+  <button onclick="rollDice()">Roll Dice</button>
+  <a href="{{ url_for('quests_page') }}">
+    <button>⬅ Back to Quests</button>
+  </a>
+
+  <!-- Popup -->
+  <div id="popup"></div>
+
+  <script>
+    const diceFaces = ["⚀","⚁","⚂","⚃","⚄","⚅"];
+
+    // Correct backend routes
+    const gameLinks = {
+      1: {url: "/coin",   name: "Coin Collector"},
+      2: {url: "/budget", name: "Budget Shopping"},
+      3: {url: "/market", name: "Changing Market"},
+      4: {url: "/save",   name: "Save or Spend"},
+      5: {url: "/money",  name: "Money Quiz"},
+      6: {url: "/build",  name: "Budget Builder"}
+    };
+
+    let rolling = false;
+
+    function rollDice() {
+      if (rolling) return;
+      rolling = true;
+
+      const dice = document.getElementById("dice");
+      const popup = document.getElementById("popup");
+
+      let count = 0;
+      let delay = 50; // start fast
+
+      const rollInterval = setInterval(() => {
+        const faceIndex = Math.floor(Math.random() * 6);
+        dice.textContent = diceFaces[faceIndex];
+        dice.style.transform = `rotate(${Math.random() * 360}deg) scale(1.2)`;
+        setTimeout(() => dice.style.transform = "scale(1)", 150);
+
+        count++;
+        delay += 10; // slow down gradually
+
+        if (count > 15) {
+          clearInterval(rollInterval);
+
+          const finalIndex = Math.floor(Math.random() * 6);
+          const finalFace = diceFaces[finalIndex];
+          dice.textContent = finalFace;
+
+          rolling = false;
+
+          // Show popup
+          const chosen = gameLinks[finalIndex + 1];
+          popup.textContent = `You rolled ${finalFace} → ${chosen.name}`;
+          popup.style.display = "block";
+
+          // Redirect after 2.5s
+          setTimeout(() => {
+            window.location.href = chosen.url;
+          }, 2500);
+        }
+      }, delay);
+    }
+  </script>
+</body>
+</html>

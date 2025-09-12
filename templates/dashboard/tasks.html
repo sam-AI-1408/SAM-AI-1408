@@ -80,6 +80,12 @@
           <input id="task-time" name="time" type="datetime-local">
           <button class="btn" type="submit">Add</button>
         </form>
+        <!-- Spin Wheel Game Button -->
+<div style="margin:12px 0;">
+  <a href="{{ url_for('spinwheel_page') }}" class="btn" style="background:#ffd24d;color:#000;">
+    🎡 Spin Fitness Wheel
+  </a>
+</div>
 
         <h3 style="margin-top:18px;">Your tasks</h3>
         <div class="tasks-list" id="tasksList">
@@ -142,6 +148,7 @@
     Daily task limit reached! You can only add 3 tasks.
 </div>
 
+
   <div id="voiceResponse"></div>
 
   <audio id="clickSound" src="/static/click.mp3" preload="auto"></audio>
@@ -162,6 +169,7 @@
     </div>
   </div>
 
+  
 <script>
   const clickSound = document.getElementById("clickSound");
   document.addEventListener("click", e => {

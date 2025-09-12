@@ -1,0 +1,156 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>📈 Market Game</title>
+  <style>
+    body {
+      font-family: 'Segoe UI', sans-serif;
+      background: linear-gradient(135deg,#050615,#0f1630);
+      color: #eaf6ff;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      padding: 30px;
+      min-height: 100vh;
+      margin: 0;
+    }
+    h1 { margin-bottom: 10px; }
+    .stats, .actions {
+      background: #111b3a;
+      padding: 15px 25px;
+      border-radius: 15px;
+      border: 2px solid #00d0ff;
+      margin: 15px 0;
+      text-align: center;
+      box-shadow: 0 0 15px rgba(0,208,255,0.3);
+    }
+    .price {
+      font-size: 24px;
+      font-weight: bold;
+      color: #00d0ff;
+    }
+    button {
+      margin: 10px;
+      padding: 10px 20px;
+      border: none;
+      border-radius: 12px;
+      background: #00d0ff;
+      color: #050615;
+      font-weight: bold;
+      cursor: pointer;
+    }
+    button:hover { transform: scale(1.05); }
+    .result {
+      margin-top: 20px;
+      font-size: 20px;
+      font-weight: bold;
+    }
+  </style>
+</head>
+<body>
+  <h1>📈 Market Game</h1>
+  <p>Buy low, sell high, and finish with more coins than you started!</p>
+
+  <div class="stats">
+    <p>💰 Coins: <span id="coins">100</span></p>
+    <p>📦 Items: <span id="items">0</span></p>
+    <p>Turns Left: <span id="turns">10</span></p>
+  </div>
+
+  <div class="stats">
+    <p>Current Item: <span id="itemName">📱 Phone</span></p>
+    <p class="price">Price: <span id="price">50</span> coins</p>
+  </div>
+
+  <div class="actions">
+    <button onclick="buyItem()">Buy</button>
+    <button onclick="sellItem()">Sell</button>
+  </div>
+
+  <div id="message" class="result">⏳ Waiting for the market...</div>
+
+  <button onclick="resetGame()">🔄 New Game</button>
+  <a href="{{ url_for('quests_page') }}">
+    <button>⬅ Back to Quests</button>
+  </a>
+
+  <script>
+    let coins = 100;
+    let items = 0;
+    let turns = 10;
+    let price = 50;
+    let itemNames = ["📱 Phone", "🎮 Game", "🍎 Apple", "👟 Shoes", "🎧 Headphones"];
+    let currentItem = "";
+    let marketInterval;
+
+    function randomInt(min, max) {
+      return Math.floor(Math.random() * (max - min + 1)) + min;
+    }
+
+    function updateDisplay() {
+      document.getElementById("coins").textContent = coins;
+      document.getElementById("items").textContent = items;
+      document.getElementById("turns").textContent = turns;
+      document.getElementById("price").textContent = price;
+      document.getElementById("itemName").textContent = currentItem;
+    }
+
+    function nextTurn() {
+      if (turns <= 0) {
+        clearInterval(marketInterval);
+        endGame();
+        return;
+      }
+      turns--;
+      price = randomInt(20, 100);
+      currentItem = itemNames[randomInt(0, itemNames.length - 1)];
+      updateDisplay();
+      document.getElementById("message").textContent = "📊 Market updated!";
+    }
+
+    function buyItem() {
+      if (coins >= price) {
+        coins -= price;
+        items++;
+        updateDisplay();
+        document.getElementById("message").textContent = `✅ Bought 1 item for ${price} coins.`;
+      } else {
+        document.getElementById("message").textContent = "❌ Not enough coins to buy!";
+      }
+    }
+
+    function sellItem() {
+      if (items > 0) {
+        coins += price;
+        items--;
+        updateDisplay();
+        document.getElementById("message").textContent = `💰 Sold 1 item for ${price} coins.`;
+      } else {
+        document.getElementById("message").textContent = "❌ You don’t have any items to sell!";
+      }
+    }
+
+    function endGame() {
+      let result = coins > 100 ? "🎉 You Win! Great trading skills!" : "❌ You Lose! Better luck next time.";
+      document.getElementById("message").textContent = result + ` Final Balance: ${coins} coins.`;
+    }
+
+    function resetGame() {
+      coins = 100;
+      items = 0;
+      turns = 10;
+      price = 50;
+      currentItem = "📱 Phone";
+      updateDisplay();
+      document.getElementById("message").textContent = "⏳ Waiting for the market...";
+      clearInterval(marketInterval);
+      marketInterval = setInterval(nextTurn, 3000);
+    }
+
+    // Start game
+    resetGame();
+  </script>
+</body>
+</html>

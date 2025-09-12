@@ -1,0 +1,155 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Memory Game</title>
+<style>
+  body {
+    font-family: 'Arial', sans-serif;
+    background: linear-gradient(135deg,#00d0ff,#050615);
+    color: #00d0ff;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: flex-start;
+    min-height: 100vh;
+    margin: 0;
+    padding: 20px;
+  }
+
+  h1 { margin-bottom: 15px; font-size: 32px; text-align: center; }
+  #score { margin-bottom: 15px; font-size: 20px; }
+  .grid { display: grid; grid-template-columns: repeat(4, 120px); gap: 15px; justify-content: center; margin-bottom: 20px; }
+
+  .card {
+    width: 120px; height: 120px; background: #11182d; border-radius: 15px;
+    display: flex; justify-content: center; align-items: center;
+    font-size: 50px; cursor: pointer;
+    box-shadow: 0 8px 20px rgba(0,0,0,0.5); transform-style: preserve-3d;
+    transition: transform 0.5s; position: relative;
+  }
+  .card.flipped { transform: rotateY(180deg); }
+  .card .front, .card .back {
+    position: absolute; width: 100%; height: 100%; border-radius: 15px;
+    display: flex; justify-content: center; align-items: center; backface-visibility: hidden;
+  }
+  .front { background: #11182d; transform: rotateY(180deg); font-size: 50px; }
+  .back { background: #0f1630; font-size: 40px; }
+
+  button {
+    margin: 5px; padding: 12px 25px; border: none; border-radius: 12px;
+    background: #00d0ff; color: #050615; font-weight: bold; cursor: pointer;
+    transition: transform 0.2s;
+  }
+  button:hover { transform: scale(1.05); }
+
+  .game-buttons { margin-bottom: 20px; display: flex; flex-wrap: wrap; gap: 10px; justify-content: center; }
+</style>
+</head>
+<body>
+
+<h1>Memory Game & More</h1>
+<div class="game-buttons">
+  <button onclick="createGrid()">Memory Game</button>
+  <button onclick="alert('Coming soon: Quiz Game')">Quiz Game</button>
+  <button onclick="alert('Coming soon: Logical Thinking')">Logical Thinking</button>
+  <button onclick="alert('Coming soon: World Build')">World Build</button>
+</div>
+
+<div id="score">Matches: 0</div>
+<div class="grid" id="grid"></div>
+<div>
+  <button id="resetBtn">Restart Memory Game</button>
+  <button id="backBtn">← Back to Academics</button>
+</div>
+
+<script>
+const icons = ["🐶","🐱","🦊","🐸","🐵","🦁","🐮","🐷"];
+let cardsArray = [...icons, ...icons]; 
+let flippedCards = [];
+let matchedPairs = 0;
+
+const grid = document.getElementById('grid');
+const scoreEl = document.getElementById('score');
+const resetBtn = document.getElementById('resetBtn');
+const backBtn = document.getElementById('backBtn');
+
+function shuffle(array){
+  for(let i=array.length-1;i>0;i--){
+    const j = Math.floor(Math.random()*(i+1));
+    [array[i], array[j]] = [array[j], array[i]];
+  }
+  return array;
+}
+
+function createGrid(){
+  grid.innerHTML = '';
+  matchedPairs = 0;
+  scoreEl.textContent = `Matches: ${matchedPairs}`;
+  const shuffled = shuffle([...cardsArray]);
+
+  shuffled.forEach((icon) => {
+    const card = document.createElement('div');
+    card.className = 'card';
+    card.dataset.icon = icon;
+
+    const front = document.createElement('div');
+    front.className = 'front';
+    front.textContent = icon;
+
+    const back = document.createElement('div');
+    back.className = 'back';
+    back.textContent = "❓";
+
+    card.appendChild(front);
+    card.appendChild(back);
+
+    card.addEventListener('click', () => flipCard(card));
+
+    grid.appendChild(card);
+  });
+}
+
+function flipCard(card){
+  if(flippedCards.length < 2 && !card.classList.contains('flipped')){
+    card.classList.add('flipped');
+    flippedCards.push(card);
+
+    if(flippedCards.length === 2){
+      setTimeout(checkMatch, 800);
+    }
+  }
+}
+
+function checkMatch(){
+  const [card1, card2] = flippedCards;
+  if(card1.dataset.icon === card2.dataset.icon){
+    matchedPairs++;
+    scoreEl.textContent = `Matches: ${matchedPairs}`;
+    card1.style.pointerEvents = 'none';
+    card2.style.pointerEvents = 'none';
+  } else {
+    card1.classList.remove('flipped');
+    card2.classList.remove('flipped');
+  }
+  flippedCards = [];
+
+  if(matchedPairs === icons.length){
+    setTimeout(()=> alert('🎉 You completed the memory game!'), 500);
+  }
+}
+
+resetBtn.addEventListener('click', createGrid);
+
+// Back button
+backBtn.addEventListener('click', () => {
+  window.location.href = '/academics';
+});
+
+// Initial load
+createGrid();
+</script>
+
+</body>
+</html>

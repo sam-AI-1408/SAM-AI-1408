@@ -7,77 +7,95 @@
 <style>
   body {
     display: flex; justify-content: center; align-items: center;
-    height: 100vh; margin:0;
+    min-height: 100vh; margin:0;
     background: linear-gradient(135deg,#050615,#0a0f1c);
     font-family: 'Arial', sans-serif;
     color: #00d0ff;
   }
   .quiz-container {
     background: #11182d;
-    padding: 40px;
+    padding: 30px;
     border-radius: 15px;
-    width: 450px;
+    width: 700px;
+    max-width: 95%;
     box-shadow: 0 8px 25px rgba(0,0,0,0.6);
-    text-align: center;
   }
   .question {
-    font-size: 22px;
-    margin-bottom: 25px;
-    min-height: 70px;
+    font-size: 20px;
+    margin-bottom: 15px;
+    min-height: 50px;
     color: #00d0ff;
   }
+  #timer {
+    font-size: 18px;
+    font-weight: bold;
+    margin-bottom: 15px;
+    color: #ff6666;
+    text-shadow: 0 0 6px #ff6666;
+    text-align:center;
+  }
   .options {
-    display: flex; flex-direction: column; gap: 15px;
+    display: flex; flex-direction: column; gap: 12px;
   }
   .option {
-    padding: 12px 18px;
-    border-radius: 12px;
+    padding: 10px 15px;
+    border-radius: 10px;
     background: #0f1630;
     cursor: pointer;
     transition: all 0.3s;
     font-weight: 600;
   }
-  .option:hover {
-    transform: scale(1.05);
-    background: #00d0ff22;
-  }
-  .option.correct {
-    background: #00ff88;
-    color: #050615;
-  }
-  .option.wrong {
-    background: #ff5566;
-    color: #050615;
-  }
-  .next-btn, #backBtn {
-    margin-top: 25px;
-    padding: 12px 20px;
+  .option:hover { transform: scale(1.05); background: #00d0ff22; }
+  .option.correct { background: #00ff88; color: #050615; }
+  .option.wrong { background: #ff5566; color: #050615; }
+  .option.selected { border:2px solid #00d0ff; }
+
+  .nav-btns { margin-top: 20px; display:flex; justify-content: space-between; }
+  .btn {
+    padding: 10px 18px;
     border:none;
-    border-radius: 12px;
+    border-radius: 10px;
     background: #00d0ff;
     color:#050615;
     cursor:pointer;
     font-weight:bold;
-    font-size: 16px;
+    font-size: 15px;
   }
-  #backBtn {
-    background: #ff8fa3;
+  .prev-btn { background: #ff8fa3; }
+  #backBtn { display:none; margin-top: 20px; background: #ff8fa3; }
+
+  .score { font-size: 22px; margin-bottom: 15px; color: #00ff88; }
+  .review-container { margin-top: 20px; }
+  .review-question {
+    margin-bottom: 20px;
+    padding: 15px;
+    border-radius: 10px;
+    background: #0f1630;
   }
-  .score {
-    font-size: 24px;
-    margin-top: 20px;
-    color: #00ff88;
+  .review-question h3 { margin: 0 0 10px; color:#00d0ff; }
+  .review-option {
+    padding: 8px 12px;
+    margin: 5px 0;
+    border-radius: 8px;
+    background: #1a223d;
   }
+  .review-option.correct { background:#00ff88; color:#050615; font-weight:bold; }
+  .review-option.user { border:2px solid #00d0ff; }
 </style>
 </head>
 <body>
 
 <div class="quiz-container" id="quizContainer">
-  <div class="question" id="question">Question text</div>
+  <div id="timer">03:00</div>
+  <div class="question" id="question"></div>
   <div class="options" id="options"></div>
-  <button class="next-btn" id="nextBtn" style="display:none;">Next →</button>
+  <div class="nav-btns">
+    <button class="btn prev-btn" id="prevBtn" style="display:none;">← Previous</button>
+    <button class="btn" id="nextBtn" style="display:none;">Next →</button>
+  </div>
   <div class="score" id="score" style="display:none;"></div>
-  <button class="next-btn" id="backBtn" style="display:none;">← Back to Academics</button>
+  <div class="review-container" id="reviewContainer" style="display:none;"></div>
+  <button class="btn" id="backBtn">← Back to Academics</button>
 </div>
 
 <script>
@@ -89,17 +107,39 @@ const quizData = [
   { question: "Which gas is most abundant in Earth's atmosphere?", options: ["Oxygen","Nitrogen","Carbon Dioxide","Argon"], answer: "Nitrogen" },
   { question: "Which country won the first FIFA World Cup?", options: ["Brazil","Uruguay","Italy","Germany"], answer: "Uruguay" },
   { question: "E = mc² is an equation formulated by?", options: ["Newton","Einstein","Tesla","Bohr"], answer: "Einstein" },
-  { question: "Which planet has the fastest orbit around the Sun?", options: ["Mercury","Venus","Earth","Mars"], answer: "Mercury" }
+  { question: "Which planet has the fastest orbit around the Sun?", options: ["Mercury","Venus","Earth","Mars"], answer: "Mercury" },
+  { question: "What is the integral of 1/x?", options: ["ln(x)","1/x²","x²/2","e^x"], answer: "ln(x)" },
+  { question: "Which element is a noble gas?", options: ["Oxygen","Neon","Chlorine","Sodium"], answer: "Neon" },
+  { question: "Which scientist proposed the uncertainty principle?", options: ["Bohr","Planck","Heisenberg","Dirac"], answer: "Heisenberg" },
+  { question: "Which programming language is primarily used for AI?", options: ["Python","C","HTML","Java"], answer: "Python" },
+  { question: "Which country is known as the Land of the Rising Sun?", options: ["China","Japan","Thailand","Korea"], answer: "Japan" },
+  { question: "Which organ purifies blood in the human body?", options: ["Heart","Lungs","Kidney","Liver"], answer: "Kidney" }
 ];
 
 let currentQuestion = 0;
-let score = 0;
+let userAnswers = [];
 
 const questionEl = document.getElementById('question');
 const optionsEl = document.getElementById('options');
 const nextBtn = document.getElementById('nextBtn');
+const prevBtn = document.getElementById('prevBtn');
 const scoreEl = document.getElementById('score');
 const backBtn = document.getElementById('backBtn');
+const timerEl = document.getElementById('timer');
+const reviewContainer = document.getElementById('reviewContainer');
+
+// Timer setup
+let timeLeft = 180;
+const timerInterval = setInterval(() => {
+  let minutes = Math.floor(timeLeft / 60);
+  let seconds = timeLeft % 60;
+  timerEl.textContent = `${minutes.toString().padStart(2,'0')}:${seconds.toString().padStart(2,'0')}`;
+  if(timeLeft <= 0){
+    clearInterval(timerInterval);
+    showReview(true);
+  }
+  timeLeft--;
+}, 1000);
 
 function loadQuestion() {
   nextBtn.style.display = 'none';
@@ -110,51 +150,104 @@ function loadQuestion() {
     const btn = document.createElement('div');
     btn.className = 'option';
     btn.textContent = opt;
+    if(userAnswers[currentQuestion] === opt){
+      btn.classList.add('selected');
+    }
     btn.addEventListener('click', () => selectAnswer(btn, q.answer));
     optionsEl.appendChild(btn);
   });
+  prevBtn.style.display = currentQuestion === 0 ? 'none' : 'inline-block';
 }
 
 function selectAnswer(btn, correctAnswer) {
-  const allOptions = document.querySelectorAll('.option');
-  allOptions.forEach(o => o.style.pointerEvents = 'none');
-  
-  if(btn.textContent === correctAnswer){
-    btn.classList.add('correct');
-    score++;
-  } else {
-    btn.classList.add('wrong');
-    allOptions.forEach(o => {
-      if(o.textContent === correctAnswer) o.classList.add('correct');
-    });
-  }
+  userAnswers[currentQuestion] = btn.textContent;
   nextBtn.style.display = 'inline-block';
+  if(currentQuestion === quizData.length - 1){
+    nextBtn.textContent = "Finish";
+  } else {
+    nextBtn.textContent = "Next →";
+  }
 }
 
 nextBtn.addEventListener('click', () => {
-  currentQuestion++;
-  if(currentQuestion < quizData.length){
+  if(currentQuestion < quizData.length - 1){
+    currentQuestion++;
     loadQuestion();
   } else {
-    showScore();
+    showReview();
   }
 });
 
-function showScore(){
+prevBtn.addEventListener('click', () => {
+  if(currentQuestion > 0){
+    currentQuestion--;
+    loadQuestion();
+  }
+});
+
+function showReview(timeout=false){
+  clearInterval(timerInterval);
   questionEl.style.display = 'none';
   optionsEl.style.display = 'none';
   nextBtn.style.display = 'none';
+  prevBtn.style.display = 'none';
+  timerEl.style.display = 'none';
+
   scoreEl.style.display = 'block';
-  scoreEl.textContent = `You scored ${score} / ${quizData.length}`;
-  
+  reviewContainer.style.display = 'block';
+  reviewContainer.innerHTML = "";
+
+  let totalScore = 0;
+  quizData.forEach((q,i)=>{
+    const userAns = userAnswers[i] || "No answer";
+    const isCorrect = userAns === q.answer;
+    if(isCorrect) totalScore++;
+
+    let block = `<div class="review-question"><h3>Q${i+1}: ${q.question}</h3>`;
+    q.options.forEach(opt=>{
+      let cls = "review-option";
+      if(opt === q.answer) cls += " correct";
+      if(opt === userAns) cls += " user";
+      block += `<div class="${cls}">${opt}</div>`;
+    });
+    block += `</div>`;
+    reviewContainer.innerHTML += block;
+  });
+
+  scoreEl.innerHTML = timeout 
+    ? `⏰ Time's up! Your score: ${totalScore} / ${quizData.length}` 
+    : `✅ You scored ${totalScore} / ${quizData.length}`;
+
   backBtn.style.display = 'inline-block';
   backBtn.addEventListener('click', () => {
-    window.location.href = '/academics'; // redirect to Academics
+    window.location.href = '/academics';
   });
 }
 
 // Initial load
 loadQuestion();
+
+
+function selectAnswer(btn, correctAnswer) {
+  // Remove 'selected' class from all options first
+  const allOptions = document.querySelectorAll('.option');
+  allOptions.forEach(o => o.classList.remove('selected'));
+
+  // Add 'selected' class to the clicked option
+  btn.classList.add('selected');
+
+  // Save the answer
+  userAnswers[currentQuestion] = btn.textContent;
+
+  // Show next button
+  nextBtn.style.display = 'inline-block';
+  if(currentQuestion === quizData.length - 1){
+    nextBtn.textContent = "Finish";
+  } else {
+    nextBtn.textContent = "Next →";
+  }
+}
+
 </script>
 
 </body>

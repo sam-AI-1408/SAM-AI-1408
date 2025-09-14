@@ -3,199 +3,231 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Logical Thinking Game with Hints</title>
+<title>Sliding Puzzle Game</title>
 <style>
   body {
     font-family: 'Arial', sans-serif;
-    background: linear-gradient(135deg,#00d0ff,#050615);
+    background: linear-gradient(135deg,#050615,#0a0f1c);
     color: #00d0ff;
     display: flex;
     justify-content: center;
     align-items: center;
-    height: 100vh;
+    min-height: 100vh;
     margin: 0;
   }
   .game-container {
     background: #11182d;
     padding: 30px;
     border-radius: 20px;
-    width: 750px;
+    width: 480px;
+    text-align: center;
     box-shadow: 0 8px 25px rgba(0,0,0,0.6);
-    text-align: center;
   }
-  h1 { margin-bottom: 15px; font-size: 28px; }
-  .hint { margin-bottom: 20px; font-size: 18px; color: #00ff88; }
-  .columns { display: flex; justify-content: space-between; margin-bottom: 25px; }
-  .left-column, .right-column { width: 45%; }
-  .item, .drop-zone {
-    background: #0f1630;
-    padding: 15px 20px;
+  h1 {
+    color: #00d0ff;
+    margin-bottom: 20px;
+    text-shadow: 0 0 8px #00d0ff;
+  }
+  #grid {
+    position: relative;
+    width: 384px; /* 4 tiles * 90px + 3 gaps * 6px */
+    height: 384px;
+    margin: 0 auto 20px;
+  }
+  .tile {
+    position: absolute;
+    width: 90px;
+    height: 90px;
     border-radius: 12px;
-    margin: 12px 0;
-    cursor: grab;
-    transition: all 0.3s;
-    font-size: 18px;
-    user-select: none;
-    text-align: center;
-  }
-  .item:hover { background: #00d0ff22; }
-  .drop-zone {
-    min-height: 60px;
     display: flex;
-    align-items: center;
     justify-content: center;
-    border: 2px dashed #00d0ff33;
+    align-items: center;
+    font-size: 28px;
+    font-weight: bold;
+    cursor: pointer;
+    user-select: none;
+    background: linear-gradient(135deg,#00d0ff,#005f99);
+    color: #fff;
+    transition: transform 0.3s ease;
   }
-  #checkBtn, #backBtn, #nextRoundBtn {
-    padding: 12px 20px;
-    border:none;
+  .tile.empty {
+    background: #11182d;
+    cursor: default;
+  }
+  #info {
+    display: flex;
+    justify-content: space-between;
+    margin-bottom: 20px;
+  }
+  #timer, #moves {
+    font-size: 18px;
+    font-weight: bold;
+  }
+  button {
+    padding: 10px 20px;
+    border: none;
     border-radius: 12px;
     background: #00d0ff;
-    color:#050615;
-    cursor:pointer;
-    font-weight:bold;
-    margin: 10px 5px 0 5px;
+    color: #050615;
+    font-weight: bold;
+    cursor: pointer;
+    margin: 5px;
     transition: transform 0.2s;
   }
-  #checkBtn:hover, #backBtn:hover, #nextRoundBtn:hover { transform: scale(1.05); }
-  #feedback { margin-top: 20px; font-size: 20px; font-weight: bold; }
-  @media(max-width: 800px) { .columns { flex-direction: column; align-items: center; } .left-column, .right-column { width: 80%; } }
+  button:hover { transform: scale(1.05); }
+  #message {
+    margin-top: 15px;
+    font-size: 18px;
+    font-weight: bold;
+  }
 </style>
 </head>
 <body>
-  <div class="game-container">
-    <h1>Logical Thinking Game</h1>
-    <div class="hint" id="roundHint"></div>
-    <div class="columns">
-      <div class="left-column" id="leftColumn"></div>
-      <div class="right-column" id="rightColumn"></div>
-    </div>
-    <button id="checkBtn">Check Answers</button>
-    <button id="nextRoundBtn" style="display:none;">Next Round →</button>
-    <button id="backBtn">← Back to Dashboard</button>
-    <div id="feedback"></div>
+
+<div class="game-container">
+  <h1>Sliding Puzzle Game</h1>
+  <div id="info">
+    <div id="timer">Time: 10:00</div>
+    <div id="moves">Moves: 0</div>
   </div>
+  <div id="grid"></div>
+  <button id="backBtn">← Back to Academics</button>
+  <div id="message"></div>
+</div>
 
 <script>
-const rounds = [
-  {
-    name: "Animals & Sounds",
-    hint: "Match animals to their correct sounds 🐮🐶🐱🐑",
-    items: { cow:'Moo', dog:'Bark', cat:'Meow', sheep:'Baa', fox:'???' },
-    answers: ["Moo","Bark","Meow","Baa","Woof"]
-  },
-  {
-    name: "Colors & Shapes",
-    hint: "Match shapes to their colors 🔴🔵🟢🟡",
-    items: { circle:'Red', square:'Blue', triangle:'Green', rectangle:'Yellow', oval:'???' },
-    answers: ["Red","Blue","Green","Yellow","Purple"]
-  },
-  {
-    name: "Numbers & Words",
-    hint: "Match numbers to words 1️⃣2️⃣3️⃣4️⃣",
-    items: { '1':'One','2':'Two','3':'Three','4':'Four','5':'???' },
-    answers: ["One","Two","Three","Four","Five"]
-  }
-];
+const gridSize = 4;
+let grid = [];
+let emptyTile = {row:gridSize-1, col:gridSize-1};
+let moves = 0;
+let timer = 600; // 10 minutes
+let interval;
 
-let currentRound = 0;
-let totalScore = 0;
+const gridEl = document.getElementById('grid');
+const tileSize = 90 + 6; // 90px tile + 6px gap
 
-const leftColumn = document.getElementById('leftColumn');
-const rightColumn = document.getElementById('rightColumn');
-const checkBtn = document.getElementById('checkBtn');
-const nextRoundBtn = document.getElementById('nextRoundBtn');
-const backBtn = document.getElementById('backBtn');
-const feedback = document.getElementById('feedback');
-const roundHint = document.getElementById('roundHint');
+// Initialize grid
+function initGrid() {
+  grid = [];
+  let nums = [];
+  for(let i=1;i<gridSize*gridSize;i++) nums.push(i);
+  nums.push(null);
+  nums = shuffle(nums);
 
-function loadRound(roundIndex){
-  leftColumn.innerHTML = '';
-  rightColumn.innerHTML = '';
-  feedback.textContent = '';
-  nextRoundBtn.style.display = 'none';
-  checkBtn.style.display = 'inline-block';
-
-  const round = rounds[roundIndex];
-  roundHint.textContent = round.hint;
-
-  const itemKeys = Object.keys(round.items).sort(() => Math.random() - 0.5);
-  itemKeys.forEach(key => {
-    const div = document.createElement('div');
-    div.className = 'item';
-    div.id = key;
-    div.textContent = key;
-    div.title = `Hint: ${round.items[key]}`; // Small hover hint
-    div.draggable = true;
-    div.addEventListener('dragstart', dragStart);
-    leftColumn.appendChild(div);
-  });
-
-  const shuffledAnswers = round.answers.sort(() => Math.random() - 0.5);
-  shuffledAnswers.forEach(ans => {
-    const div = document.createElement('div');
-    div.className = 'drop-zone';
-    div.setAttribute('data-answer', ans);
-    div.textContent = "Drop Here";
-    rightColumn.appendChild(div);
-  });
-}
-
-// Drag & Drop
-function dragStart(e){ e.dataTransfer.setData('text', e.target.id); }
-function dragOver(e){ e.preventDefault(); }
-function drop(e){
-  e.preventDefault();
-  const draggedId = e.dataTransfer.getData('text');
-  const draggedEl = document.getElementById(draggedId);
-  const dropZone = e.target;
-  if(dropZone.classList.contains('drop-zone')){
-    dropZone.textContent = draggedEl.textContent;
-    dropZone.setAttribute('data-id', draggedId);
-    draggedEl.style.display = 'none';
-  }
-}
-
-rightColumn.addEventListener('dragover', dragOver);
-rightColumn.addEventListener('drop', drop);
-
-// Check Answers
-checkBtn.addEventListener('click', () => {
-  const round = rounds[currentRound];
-  const dropZones = document.querySelectorAll('.drop-zone');
-  let correctThisRound = 0;
-
-  dropZones.forEach(zone => {
-    const answer = zone.getAttribute('data-answer');
-    const id = zone.getAttribute('data-id');
-    if(id && round.items[id] === answer){
-      correctThisRound++;
-      zone.style.backgroundColor = '#00ff88';
-    } else {
-      zone.style.backgroundColor = '#ff5566';
+  let index = 0;
+  for(let i=0;i<gridSize;i++){
+    grid[i] = [];
+    for(let j=0;j<gridSize;j++){
+      grid[i][j] = nums[index];
+      if(nums[index]===null) emptyTile = {row:i, col:j};
+      index++;
     }
-  });
+  }
+}
 
-  feedback.textContent = `You got ${correctThisRound} out of ${dropZones.length} correct!`;
-  feedback.style.color = correctThisRound === dropZones.length ? '#00ff88' : '#ff5566';
+// Shuffle array
+function shuffle(arr){
+  let n = arr.length;
+  for(let i=n-1;i>0;i--){
+    const j = Math.floor(Math.random()*(i+1));
+    [arr[i], arr[j]] = [arr[j], arr[i]];
+  }
+  return arr;
+}
 
-  checkBtn.style.display = 'none';
-  if(currentRound < rounds.length - 1) nextRoundBtn.style.display = 'inline-block';
+// Render grid with smooth animation
+function renderGrid(){
+  gridEl.innerHTML = '';
+  for(let i=0;i<gridSize;i++){
+    for(let j=0;j<gridSize;j++){
+      const value = grid[i][j];
+      const tile = document.createElement('div');
+      tile.className = 'tile';
+      if(value===null) tile.classList.add('empty');
+      else tile.textContent = value;
+
+      tile.style.transform = `translate(${j*tileSize}px, ${i*tileSize}px)`;
+      tile.dataset.row = i;
+      tile.dataset.col = j;
+      tile.addEventListener('click', () => moveTile(i,j));
+      gridEl.appendChild(tile);
+    }
+  }
+  document.getElementById('moves').textContent = `Moves: ${moves}`;
+}
+
+// Move tile
+function moveTile(row, col){
+  if(Math.abs(row-emptyTile.row)+Math.abs(col-emptyTile.col)===1){
+    [grid[emptyTile.row][emptyTile.col], grid[row][col]] = [grid[row][col], grid[emptyTile.row][emptyTile.col]];
+    emptyTile = {row, col};
+    moves++;
+    renderGrid();
+    checkWin();
+  }
+}
+
+// Keyboard controls
+document.addEventListener('keydown', e => {
+  const r = emptyTile.row, c = emptyTile.col;
+  if(e.key==='ArrowUp' && r<gridSize-1) moveTile(r+1,c);
+  if(e.key==='ArrowDown' && r>0) moveTile(r-1,c);
+  if(e.key==='ArrowLeft' && c<gridSize-1) moveTile(r,c+1);
+  if(e.key==='ArrowRight' && c>0) moveTile(r,c-1);
 });
 
-// Next Round
-nextRoundBtn.addEventListener('click', () => {
-  currentRound++;
-  loadRound(currentRound);
+// Check win
+function checkWin(){
+  let count = 1;
+  for(let i=0;i<gridSize;i++){
+    for(let j=0;j<gridSize;j++){
+      if(i===gridSize-1 && j===gridSize-1) return endGame(true);
+      if(grid[i][j] !== count) return;
+      count++;
+    }
+  }
+}
+
+// Timer
+function startTimer(){
+  interval = setInterval(()=>{
+    if(timer<=0){
+      clearInterval(interval);
+      endGame(false);
+      return;
+    }
+    timer--;
+    const min = String(Math.floor(timer/60)).padStart(2,'0');
+    const sec = String(timer%60).padStart(2,'0');
+    document.getElementById('timer').textContent = `Time: ${min}:${sec}`;
+  },1000);
+}
+
+// End game
+function endGame(win){
+  document.getElementById('message').textContent = win ? `🎉 You solved the puzzle in ${moves} moves!` : `⏰ Time's up! Try again.`;
+  const tiles = document.querySelectorAll('.tile');
+  tiles.forEach(t=>t.style.pointerEvents='none');
+  clearInterval(interval);
+}
+
+// Back button
+document.getElementById('backBtn').addEventListener('click', ()=>{
+  window.location.href = '/academics';
 });
 
-// Back Button
-backBtn.addEventListener('click', () => {
-  window.location.href = '/academics'; // replace with your route
-});
+// Initialize game
+function initGame(){
+  initGrid();
+  renderGrid();
+  moves = 0;
+  timer = 600;
+  document.getElementById('message').textContent = '';
+  startTimer();
+}
 
-// Initial Load
-loadRound(currentRound);
+initGame();
 </script>
+
 </body>
 </html>

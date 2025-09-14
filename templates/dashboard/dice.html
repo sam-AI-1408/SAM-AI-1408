@@ -1,126 +1,191 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Dice Game</title>
-  <style>
-    body {
-      font-family: Arial, sans-serif;
-      background: linear-gradient(135deg,#050615,#0f1630);
-      color: #00d0ff;
-      display: flex;
-      flex-direction: column;
-      align-items: center;
-      justify-content: center;
-      min-height: 100vh;
-      margin: 0;
-    }
-    h1 { margin-bottom: 20px; }
-    .dice {
-      font-size: 100px;
-      margin: 20px;
-      transition: transform 0.2s ease;
-    }
-    button {
-      padding: 12px 25px;
-      border: none;
-      border-radius: 12px;
-      background: #00d0ff;
-      color: #050615;
-      font-weight: bold;
-      cursor: pointer;
-      margin: 10px;
-    }
-    button:hover { transform: scale(1.05); }
-    a { text-decoration: none; }
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>🎲 Dice Game</title>
+<style>
+  body {
+    font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+    background: linear-gradient(135deg,#050615,#0f1630);
+    color: #00d0ff;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: flex-start;
+    min-height: 100vh;
+    margin: 0;
+    padding: 20px;
+  }
 
-    /* Popup */
-    #popup {
-      position: fixed;
-      bottom: 100px;
-      background: #0f1630;
-      border: 2px solid #00d0ff;
-      padding: 15px 20px;
-      border-radius: 12px;
-      font-weight: bold;
-      display: none;
-      color: #00d0ff;
-      box-shadow: 0 0 15px rgba(0,208,255,0.5);
-      animation: fadeIn 0.3s ease;
-    }
-    @keyframes fadeIn {
-      from { opacity: 0; transform: translateY(20px); }
-      to { opacity: 1; transform: translateY(0); }
-    }
-  </style>
+  h1 { margin: 20px 0; text-align: center; }
+  .dice {
+    font-size: 120px;
+    margin: 20px;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    transition: transform 0.3s ease;
+  }
+
+  button {
+    padding: 12px 25px;
+    border: none;
+    border-radius: 12px;
+    background: #00d0ff;
+    color: #050615;
+    font-weight: bold;
+    cursor: pointer;
+    margin: 10px;
+    transition: transform 0.2s ease, filter 0.2s ease;
+  }
+  button:hover { transform: scale(1.05); filter: brightness(1.1); }
+  a { text-decoration: none; }
+
+  /* Popup */
+  #popup {
+    position: fixed;
+    bottom: 100px;
+    background: #0f1630;
+    border: 2px solid #00d0ff;
+    padding: 15px 20px;
+    border-radius: 12px;
+    font-weight: bold;
+    display: none;
+    color: #00d0ff;
+    box-shadow: 0 0 15px rgba(0,208,255,0.5);
+    animation: fadeIn 0.3s ease;
+    text-align: center;
+  }
+
+  @keyframes fadeIn {
+    from { opacity: 0; transform: translateY(20px); }
+    to { opacity: 1; transform: translateY(0); }
+  }
+
+  /* Roll history */
+  #history {
+    margin-top: 20px;
+    max-width: 300px;
+    text-align: center;
+    font-size: 16px;
+    color: #ffd24d;
+  }
+
+  /* Confetti container */
+  #confetti {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    pointer-events: none;
+    overflow: hidden;
+  }
+
+  .confetti {
+    position: absolute;
+    width: 10px;
+    height: 10px;
+    background: #ffd24d;
+    opacity: 0.8;
+    transform: rotate(45deg);
+    animation: fall 2s linear forwards;
+  }
+
+  @keyframes fall {
+    0% { transform: translateY(0) rotate(0deg); }
+    100% { transform: translateY(100vh) rotate(360deg); opacity: 0; }
+  }
+
+</style>
 </head>
 <body>
-  <h1>🎲 Dice Game</h1>
-  <div id="dice" class="dice">🎲</div>
-  <button onclick="rollDice()">Roll Dice</button>
-  <a href="{{ url_for('quests_page') }}">
-    <button>⬅ Back to Quests</button>
-  </a>
 
-  <!-- Popup -->
-  <div id="popup"></div>
+<h1>🎲 Dice Game</h1>
+<div class="dice" id="dice">🎲</div>
+<button onclick="rollDice()">Roll Dice</button>
+<a href="{{ url_for('quests_page') }}"><button>⬅ Back to Quests</button></a>
 
-  <script>
-    const diceFaces = ["⚀","⚁","⚂","⚃","⚄","⚅"];
+<!-- Popup -->
+<div id="popup"></div>
+<div id="history">Roll History: <span id="rollHistory">None</span></div>
+<div id="confetti"></div>
 
-    // Correct backend routes
-    const gameLinks = {
-      1: {url: "/coin",   name: "Coin Collector"},
-      2: {url: "/budget", name: "Budget Shopping"},
-      3: {url: "/market", name: "Changing Market"},
-      4: {url: "/save",   name: "Save or Spend"},
-      5: {url: "/money",  name: "Money Quiz"},
-      6: {url: "/build",  name: "Budget Builder"}
-    };
+<!-- Dice roll sound -->
+<audio id="diceSound" src="/static/dice-roll.mp3" preload="auto"></audio>
 
-    let rolling = false;
+<script>
+const diceFaces = ["⚀","⚁","⚂","⚃","⚄","⚅"];
+const gameLinks = {
+  1: {url: "/coin",   name: "Coin Collector"},
+  2: {url: "/budget", name: "Budget Shopping"},
+  3: {url: "/market", name: "Changing Market"},
+  4: {url: "/save",   name: "Save or Spend"},
+  5: {url: "/money",  name: "Money Quiz"},
+  6: {url: "/build",  name: "Budget Builder"}
+};
 
-    function rollDice() {
-      if (rolling) return;
-      rolling = true;
+let rolling = false;
+let rollHistory = [];
 
-      const dice = document.getElementById("dice");
-      const popup = document.getElementById("popup");
+function rollDice() {
+  if (rolling) return;
+  rolling = true;
+  const dice = document.getElementById("dice");
+  const popup = document.getElementById("popup");
+  const diceSound = document.getElementById("diceSound");
+  diceSound.currentTime = 0;
+  diceSound.play();
 
-      let count = 0;
-      let delay = 50; // start fast
+  let spins = 20; // number of intermediate rolls
+  let count = 0;
 
-      const rollInterval = setInterval(() => {
-        const faceIndex = Math.floor(Math.random() * 6);
-        dice.textContent = diceFaces[faceIndex];
-        dice.style.transform = `rotate(${Math.random() * 360}deg) scale(1.2)`;
-        setTimeout(() => dice.style.transform = "scale(1)", 150);
+  const rollInterval = setInterval(() => {
+    const faceIndex = Math.floor(Math.random() * 6);
+    dice.textContent = diceFaces[faceIndex];
+    dice.style.transform = `rotate(${Math.random()*360}deg) scale(${1 + Math.random()*0.3})`;
+    count++;
+    if(count >= spins){
+      clearInterval(rollInterval);
+      const finalIndex = Math.floor(Math.random()*6);
+      const finalFace = diceFaces[finalIndex];
+      dice.textContent = finalFace;
+      dice.style.transform = "scale(1.2) rotate(0deg)";
+      setTimeout(() => dice.style.transform = "scale(1)", 300);
 
-        count++;
-        delay += 10; // slow down gradually
+      const chosen = gameLinks[finalIndex+1];
+      popup.textContent = `You rolled ${finalFace} → ${chosen.name}`;
+      popup.style.display = "block";
+      setTimeout(()=> popup.style.display="none", 2500);
 
-        if (count > 15) {
-          clearInterval(rollInterval);
+      // Save roll history
+      rollHistory.push(finalFace);
+      document.getElementById("rollHistory").textContent = rollHistory.join(", ");
 
-          const finalIndex = Math.floor(Math.random() * 6);
-          const finalFace = diceFaces[finalIndex];
-          dice.textContent = finalFace;
+      // Trigger confetti if high roll (5 or 6)
+      if(finalIndex >= 4) launchConfetti();
 
-          rolling = false;
+      // Redirect after 2.5s
+      setTimeout(()=> window.location.href = chosen.url, 2500);
 
-          // Show popup
-          const chosen = gameLinks[finalIndex + 1];
-          popup.textContent = `You rolled ${finalFace} → ${chosen.name}`;
-          popup.style.display = "block";
-
-          // Redirect after 2.5s
-          setTimeout(() => {
-            window.location.href = chosen.url;
-          }, 2500);
-        }
-      }, delay);
+      rolling = false;
     }
-  </script>
+  }, 60);
+}
+
+// Confetti effect
+function launchConfetti(){
+  const confettiContainer = document.getElementById("confetti");
+  for(let i=0; i<50; i++){
+    const confetti = document.createElement("div");
+    confetti.className = "confetti";
+    confetti.style.left = Math.random()*100 + "vw";
+    confetti.style.background = `hsl(${Math.random()*360}, 100%, 50%)`;
+    confettiContainer.appendChild(confetti);
+    setTimeout(()=> confetti.remove(), 2000);
+  }
+}
+</script>
 </body>
 </html>

@@ -21,6 +21,7 @@
     h1{margin:0 0 8px 0;color:var(--accent)}
     .top-row{display:flex;justify-content:space-between;align-items:center;gap:12px}
     .points-badge{background:var(--card);padding:8px 12px;border-radius:12px;font-weight:700}
+    .top-row div.buttons{display:flex;align-items:center;gap:8px}
     .board{display:grid;grid-template-columns:1fr 340px;gap:18px;margin-top:18px}
     .card{background:var(--panel);padding:16px;border-radius:var(--radius);box-shadow:0 8px 20px rgba(0,0,0,0.5)}
     .form-row{display:flex;gap:8px;margin-top:8px}
@@ -42,6 +43,20 @@
     .modal{background:var(--panel);padding:18px;border-radius:12px;width:420px;max-width:95%}
     .modal h3{margin-top:0}
     .muted{color:var(--muted)}
+
+    /* Fitness Course Modal overlay */
+    .overlay {
+      display: none;
+      position: fixed;
+      inset: 0;
+      background: rgba(0,0,0,0.6);
+      align-items: center;
+      justify-content: center;
+      z-index: 2000;
+    }
+    .overlay.show {
+      display: flex;
+    }
   </style>
 </head>
 <body>
@@ -64,12 +79,17 @@
   </div>
 
   <div class="main">
+    <!-- Top row: Title + Points + Buttons -->
     <div class="top-row">
       <div>
         <h1>Tasks</h1>
         <div class="small muted">Manage tasks — add, edit, complete & delete via buttons (or voice assistant).</div>
       </div>
-      <div class="points-badge">Points: <span id="points">{{ user.points or 0 }}</span></div>
+      <div class="buttons">
+        <div class="points-badge">Points: <span id="points">{{ user.points or 0 }}</span></div>
+        <a href="{{ url_for('spinwheel_page') }}" class="btn" style="background:#ffd24d;color:#000;">🎡 Spin Fitness Wheel</a>
+        <button class="btn" id="startFitnessCourse">💪 Fitness Education</button>
+      </div>
     </div>
 
     <div class="board">
@@ -80,16 +100,9 @@
           <input id="task-time" name="time" type="datetime-local">
           <button class="btn" type="submit">Add</button>
         </form>
-        <!-- Spin Wheel Game Button -->
-<div style="margin:12px 0;">
-  <a href="{{ url_for('spinwheel_page') }}" class="btn" style="background:#ffd24d;color:#000;">
-    🎡 Spin Fitness Wheel
-  </a>
-</div>
 
         <h3 style="margin-top:18px;">Your tasks</h3>
         <div class="tasks-list" id="tasksList">
-          {# initial server-side render to avoid blank flash - handle SQLAlchemy or dict #}
           {% for t in tasks %}
           <div class="task-item" data-id="{{ t.id }}">
             <div>
@@ -106,7 +119,6 @@
                 <span class="small" style="color:#2ad19f">✔ Completed</span>
               {% endif %}
               <button class="btn btn-edit" data-id="{{ t.id }}" data-title="{{ t.title }}" data-time="{{ t.alarm_time.strftime('%Y-%m-%dT%H:%M') if t.alarm_time else '' }}">Modify</button>
-
               <form method="POST" action="{{ url_for('delete_task', task_id=t.id) }}" style="display:inline;">
                 <button class="btn btn-delete" type="submit">Delete</button>
               </form>
@@ -131,6 +143,7 @@
       </div>
     </div>
   </div>
+
   <div id="taskLimitNotification" style="
     display:none;
     position:fixed;
@@ -144,13 +157,9 @@
     font-size:14px;
     font-weight:700;
     z-index:3000;
-">
-    Daily task limit reached! You can only add 3 tasks.
-</div>
-
+  "></div>
 
   <div id="voiceResponse"></div>
-
   <audio id="clickSound" src="/static/click.mp3" preload="auto"></audio>
 
   <!-- Modify Modal -->
@@ -169,283 +178,111 @@
     </div>
   </div>
 
-  
-<script>
-  const clickSound = document.getElementById("clickSound");
-  document.addEventListener("click", e => {
-    if (e.target.tagName === "BUTTON" || e.target.tagName === "A") {
-      clickSound.currentTime = 0; clickSound.play().catch(()=>{});
-    }
-  });
-
-  // Utility: fetch and refresh tasks list (AJAX)
-  async function fetchTasksAndRender() {
-    try {
-      const res = await fetch("/tasks_list");
-      const tasks = await res.json();
-
-      // tasks might be list of objects {id,title,completed} (as your /tasks_list returns)
-      // Render list
-      const list = document.getElementById("tasksList");
-      list.innerHTML = "";
-      if (!tasks || tasks.length === 0) {
-        list.innerHTML = '<div class="small muted" style="padding:12px">No tasks yet — add your first task above.</div>';
-      } else {
-        tasks.forEach(t => {
-          const el = document.createElement("div");
-          el.className = "task-item";
-          el.dataset.id = t.id;
-          const alarm = t.alarm_time || t.due_time || "";
-          const alarmText = alarm ? (new Date(alarm)).toLocaleString() + " • " : "";
-          el.innerHTML = `
-            <div>
-              <div class="task-title">${escapeHtml(t.title)}</div>
-              <div class="task-meta">${alarmText}${t.completed ? "Completed" : "Pending"}</div>
-            </div>
-            <div class="task-actions">
-              ${t.completed ? '<span class="small" style="color:#2ad19f">✔ Completed</span>' : `<button class="btn btn-complete" data-id="${t.id}">Complete</button>`}
-              <button class="btn btn-edit" data-id="${t.id}" data-title="${escapeHtml(t.title)}" data-time="${alarm ? formatForInput(alarm) : ''}">Modify</button>
-              <form method="POST" action="/delete_task/${t.id}" style="display:inline;"><button class="btn btn-delete" type="submit">Delete</button></form>
-            </div>
-          `;
-          list.appendChild(el);
-        });
-      }
-
-      // Wire up local buttons (complete / edit)
-      document.querySelectorAll(".btn-complete").forEach(btn => {
-        btn.onclick = async (ev) => {
-          btn.disabled = true;
-          const id = btn.dataset.id;
-          try {
-            const r = await fetch(`/complete_task/${id}`, { method: "POST" });
-            const data = await r.json();
-            if (data.success) {
-              document.getElementById("points").textContent = data.points || document.getElementById("points").textContent;
-              await fetchTasksAndRender();
-            } else {
-              alert("Could not complete task");
-              btn.disabled = false;
-            }
-          } catch(err) { console.error(err); btn.disabled=false; }
-        };
-      });
-
-      document.querySelectorAll(".btn-edit").forEach(btn => {
-        btn.onclick = (ev) => {
-          openEditModal(btn.dataset.id, btn.dataset.title, btn.dataset.time);
-        };
-      });
-
-      // Update analytics/calendar
-      updateAnalytics(tasks || []);
-    } catch(err) {
-      console.error("Load tasks error", err);
-    }
-  }
-
-  // Format date to HTML input value "YYYY-MM-DDTHH:MM"
-  function formatForInput(val) {
-    try {
-      const d = new Date(val);
-      if (isNaN(d)) return "";
-      const pad = n => n.toString().padStart(2,'0');
-      return `${d.getFullYear()}-${pad(d.getMonth()+1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`;
-    } catch(e){ return ""; }
-  }
-
-  // update analytics panel
-  function updateAnalytics(tasks) {
-    const total = tasks.length;
-    const completed = tasks.filter(t=>t.completed).length;
-    const pending = total - completed;
-    document.getElementById("totalCount").textContent = total;
-    document.getElementById("pendingCount").textContent = pending;
-    document.getElementById("completedCount").textContent = completed;
-
-    // upcoming by date
-    const upcoming = tasks
-      .filter(t => t.alarm_time || t.due_time)
-      .map(t => ({...t, date: new Date(t.alarm_time || t.due_time)}))
-      .filter(t => !isNaN(t.date))
-      .sort((a,b)=>a.date - b.date)
-      .slice(0,20);
-
-    const cal = document.getElementById("calendarList");
-    if (upcoming.length === 0) { cal.innerHTML = '<div class="muted">No scheduled reminders.</div>'; return; }
-    cal.innerHTML = upcoming.map(u => `<div style="margin-bottom:8px"><strong>${(new Date(u.date)).toLocaleString()}</strong><div class="muted">${escapeHtml(u.title)}</div></div>`).join("");
-  }
- 
-  
-
-  // Edit modal
-  const modalBackdrop = document.getElementById("modalBackdrop");
-  const editTitle = document.getElementById("editTitle");
-  const editTime = document.getElementById("editTime");
-  let currentEditId = null;
-  document.getElementById("cancelEditBtn").onclick = () => closeEditModal();
-  document.getElementById("saveEditBtn").onclick = async () => {
-    const newTitle = editTitle.value.trim();
-    // modify_task route currently expects JSON with "title" (your app's route)
-    if (!newTitle) { alert("Title is required."); return; }
-    try {
-      const res = await fetch(`/modify_task/${currentEditId}`, {
-        method: "POST",
-        headers: {"Content-Type":"application/json"},
-        body: JSON.stringify({ title: newTitle })
-      });
-      const data = await res.json();
-      if (data.success) {
-        // time is optional in backend; since you don't have a backend update for alarm_time,
-        // We're only altering title via /modify_task. If you later add a route to update time,
-        // call it here via fetch.
-        closeEditModal();
-        await fetchTasksAndRender();
-      } else {
-        alert("Update failed.");
-      }
-    } catch(err) {
-      console.error(err); alert("Network error while saving.");
-    }
-  };
-
-  function openEditModal(id, title, timeVal) {
-    currentEditId = id;
-    editTitle.value = title || "";
-    editTime.value = timeVal || "";
-    modalBackdrop.style.display = "flex";
-  }
-  function closeEditModal() {
-    currentEditId = null;
-    modalBackdrop.style.display = "none";
-  }
-
-  // escape helper
-  function escapeHtml(s){ return String(s||'').replace(/[&<>"']/g, c=>({ '&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;' })[c]); }
-
-  // initial load
-  fetchTasksAndRender();
-
-  // Optional: auto-poll every 7s to keep UI fresh (useful if other tabs or users)
-  setInterval(fetchTasksAndRender, 7000);
-
-  // Helper: format input when user submits add form (the server accepts "time" as string)
-  document.getElementById("task-form").addEventListener("submit", (e)=>{
-    // allow normal form submit so backend creates the task and page redirects; after redirect AJAX will refresh
-  });
-
-  // If you want to use voice assistant file, make sure to include it below
-  // <script src="{{ url_for('static', filename='js/voice_assistant.js') }}"></script>
-</script>
+  <!-- Fitness Course Modal -->
+  <div class="overlay" id="fitnessCourseModal">
+    <div class="modal">
+      <h4>Fitness Education — Lesson</h4>
+      <div id="fitnessLessonContent" class="small" style="margin-top:10px;"></div>
+      <div class="controls" style="margin-top:12px; justify-content:center;">
+        <button class="btn" id="prevFitnessLesson">⬅ Previous</button>
+        <button class="btn" id="nextFitnessLesson">Next ➡</button>
+        <button class="btn cancel" id="exitFitnessCourse">❌ Exit</button>
+      </div>
+      <div class="small" style="margin-top:8px; text-align:center;">
+        Lesson <span id="fitnessLessonNumber">1</span> / <span id="fitnessTotalLessons">1</span>
+      </div>
+    </div>
+  </div>
 
 <script>
+const fitnessLessons = [
+  { text: "Lesson 1 — Calisthenics Basics", video: "https://www.youtube.com/embed/kuUZYUBHryw" },
+  { text: "Lesson 2 — MMA Fighting Techniques", video: "https://www.youtube.com/embed/Q3mqj0S-ECY" },
+  { text: "Lesson 3 — Strength & Conditioning", video: "https://www.youtube.com/embed/DUbdcKZ6e3E" },
+  { text: "Lesson 4 — Diet & Nutrition Tips", video: "https://www.youtube.com/embed/WfPqlTRFnLU" },
+  { text: "Lesson 5 — Advanced Workouts & Combos", video: "https://www.youtube.com/embed/TgfxvCDDC4U" }
+];
+
+let currentFitnessLesson = 0;
+const fitnessModal = document.getElementById('fitnessCourseModal');
+const fitnessLessonContent = document.getElementById('fitnessLessonContent');
+const fitnessLessonNumber = document.getElementById('fitnessLessonNumber');
+const fitnessTotalLessons = document.getElementById('fitnessTotalLessons');
+fitnessTotalLessons.textContent = fitnessLessons.length;
+
+document.getElementById('startFitnessCourse').onclick = () => {
+  currentFitnessLesson = 0;
+  showFitnessLesson();
+  fitnessModal.classList.add('show');
+};
+document.getElementById('exitFitnessCourse').onclick = () => fitnessModal.classList.remove('show');
+document.getElementById('nextFitnessLesson').onclick = () => {
+  if(currentFitnessLesson < fitnessLessons.length - 1) { currentFitnessLesson++; showFitnessLesson(); }
+};
+document.getElementById('prevFitnessLesson').onclick = () => {
+  if(currentFitnessLesson > 0) { currentFitnessLesson--; showFitnessLesson(); }
+};
+function showFitnessLesson() {
+  const lesson = fitnessLessons[currentFitnessLesson];
+  fitnessLessonContent.innerHTML = `<strong>${lesson.text}</strong><br><br>
+    <iframe width="100%" height="315" src="${lesson.video}" frameborder="0" allowfullscreen></iframe>`;
+  fitnessLessonNumber.textContent = currentFitnessLesson + 1;
+}
+
+// Task functions (unchanged)
+const clickSound = document.getElementById("clickSound");
 const taskForm = document.getElementById("task-form");
 const tasksList = document.getElementById("tasksList");
 const taskLimitNotification = document.getElementById("taskLimitNotification");
+const modalBackdrop = document.getElementById("modalBackdrop");
+const editTitle = document.getElementById("editTitle");
+const editTime = document.getElementById("editTime");
+let currentEditId = null;
 
-function checkTaskLimit() {
-  const currentTasks = tasksList.querySelectorAll(".task-item").length;
-  if (currentTasks >= 3) {
-    taskLimitNotification.style.display = "block"; // show banner
-    return true;
-  } else {
-    taskLimitNotification.style.display = "none"; // hide banner
-    return false;
-  }
-}
-
-// Run every time tasks are fetched
-async function fetchTasksAndRender() {
-  try {
-    const res = await fetch("/tasks_list");
-    const tasks = await res.json();
-    const list = tasksList;
-    list.innerHTML = "";
-    if (!tasks || tasks.length === 0) {
-      list.innerHTML = '<div class="small muted" style="padding:12px">No tasks yet — add your first task above.</div>';
-    } else {
-      tasks.forEach(t => {
-        const el = document.createElement("div");
-        el.className = "task-item";
-        el.dataset.id = t.id;
-        const alarm = t.alarm_time || t.due_time || "";
-        const alarmText = alarm ? (new Date(alarm)).toLocaleString() + " • " : "";
-        el.innerHTML = `
-          <div>
-            <div class="task-title">${escapeHtml(t.title)}</div>
-            <div class="task-meta">${alarmText}${t.completed ? "Completed" : "Pending"}</div>
-          </div>
-          <div class="task-actions">
-            ${t.completed ? '<span class="small" style="color:#2ad19f">✔ Completed</span>' : `<button class="btn btn-complete" data-id="${t.id}">Complete</button>`}
-            <button class="btn btn-edit" data-id="${t.id}" data-title="${escapeHtml(t.title)}" data-time="${alarm ? formatForInput(alarm) : ''}">Modify</button>
-            <form method="POST" action="/delete_task/${t.id}" style="display:inline;"><button class="btn btn-delete" type="submit">Delete</button></form>
-          </div>
-        `;
-        list.appendChild(el);
-      });
-    }
-
-    checkTaskLimit(); // Show/hide notification
-  } catch(err) { console.error("Load tasks error", err); }
-}
-
-// Prevent adding tasks if limit reached
-taskForm.addEventListener("submit", (e) => {
-  if (checkTaskLimit()) {
-    e.preventDefault(); // stop form submission
-  }
-});
-
-function checkTaskLimit() {
-  const currentTasks = tasksList.querySelectorAll(".task-item").length;
-  const limit = 3;
-  if (currentTasks >= limit) {
-    taskLimitNotification.style.display = "block"; // show banner
-    return true;
-  } else {
-    taskLimitNotification.style.display = "none"; // hide banner
-    return false;
-  }
-}
-
-// Call this whenever tasks are loaded/refreshed
-fetchTasksAndRender = async () => {
-  try {
-    const res = await fetch("/tasks_list");
-    const tasks = await res.json();
-    const list = tasksList;
-    list.innerHTML = "";
-    if (!tasks || tasks.length === 0) {
-      list.innerHTML = '<div class="small muted" style="padding:12px">No tasks yet — add your first task above.</div>';
-    } else {
-      tasks.forEach(t => {
-        const el = document.createElement("div");
-        el.className = "task-item";
-        el.dataset.id = t.id;
-        const alarm = t.alarm_time || t.due_time || "";
-        const alarmText = alarm ? (new Date(alarm)).toLocaleString() + " • " : "";
-        el.innerHTML = `
-          <div>
-            <div class="task-title">${escapeHtml(t.title)}</div>
-            <div class="task-meta">${alarmText}${t.completed ? "Completed" : "Pending"}</div>
-          </div>
-          <div class="task-actions">
-            ${t.completed ? '<span class="small" style="color:#2ad19f">✔ Completed</span>' : `<button class="btn btn-complete" data-id="${t.id}">Complete</button>`}
-            <button class="btn btn-edit" data-id="${t.id}" data-title="${escapeHtml(t.title)}" data-time="${alarm ? formatForInput(alarm) : ''}">Modify</button>
-            <form method="POST" action="/delete_task/${t.id}" style="display:inline;"><button class="btn btn-delete" type="submit">Delete</button></form>
-          </div>
-        `;
-        list.appendChild(el);
-      });
-    }
-
-    checkTaskLimit(); // Show/hide top banner
-  } catch(err) {
-    console.error("Load tasks error", err);
-  }
+function escapeHtml(s){ return String(s||'').replace(/[&<>"']/g, c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'})[c]); }
+function formatForInput(val){ const d=new Date(val); if(isNaN(d)) return ""; const pad=n=>n.toString().padStart(2,'0'); return `${d.getFullYear()}-${pad(d.getMonth()+1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`; }
+function checkTaskLimit() { const currentTasks = tasksList.querySelectorAll(".task-item").length; const limit = 3; if (currentTasks >= limit) { taskLimitNotification.style.display = "block"; return true; } taskLimitNotification.style.display = "none"; return false; }
+taskForm.addEventListener("submit", e => { if(checkTaskLimit()) e.preventDefault(); });
+document.addEventListener("click", e => { if(e.target.tagName==="BUTTON"||e.target.tagName==="A"){ clickSound.currentTime=0; clickSound.play().catch(()=>{}); } });
+function openEditModal(id,title,timeVal){ currentEditId=id; editTitle.value=title||""; editTime.value=timeVal||""; modalBackdrop.style.display="flex"; }
+function closeEditModal(){ currentEditId=null; modalBackdrop.style.display="none"; }
+document.getElementById("cancelEditBtn").onclick = closeEditModal;
+document.getElementById("saveEditBtn").onclick = async () => {
+  const newTitle = editTitle.value.trim();
+  if(!newTitle){ alert("Title required."); return; }
+  try{
+    const res = await fetch(`/modify_task/${currentEditId}`,{ method:"POST", headers:{"Content-Type":"application/json"}, body:JSON.stringify({title:newTitle}) });
+    const data = await res.json();
+    if(data.success){ closeEditModal(); fetchTasksAndRender(); } else alert("Update failed.");
+  }catch(e){ alert("Network error"); }
 };
+async function fetchTasksAndRender() {
+  try{
+    const res = await fetch("/tasks_list"); const tasks = await res.json();
+    const list = tasksList; list.innerHTML="";
+    if(!tasks||tasks.length===0){ list.innerHTML='<div class="small muted" style="padding:12px">No tasks yet — add your first task above.</div>'; }
+    else tasks.forEach(t=>{
+      const el=document.createElement("div"); el.className="task-item"; el.dataset.id=t.id;
+      const alarm = t.alarm_time || t.due_time || "";
+      const alarmText = alarm ? (new Date(alarm)).toLocaleString()+" • ":"";
+      el.innerHTML=`<div><div class="task-title">${escapeHtml(t.title)}</div><div class="task-meta">${alarmText}${t.completed?"Completed":"Pending"}</div></div>
+        <div class="task-actions">
+        ${t.completed?'<span class="small" style="color:#2ad19f">✔ Completed</span>':`<button class="btn btn-complete" data-id="${t.id}">Complete</button>`}
+        <button class="btn btn-edit" data-id="${t.id}" data-title="${escapeHtml(t.title)}" data-time="${alarm?formatForInput(alarm):''}">Modify</button>
+        <form method="POST" action="/delete_task/${t.id}" style="display:inline;"><button class="btn btn-delete" type="submit">Delete</button></form>
+        </div>`;
+      list.appendChild(el);
+    });
+    document.querySelectorAll(".btn-complete").forEach(btn=>{
+      btn.onclick=async ()=>{ btn.disabled=true; try{ const r=await fetch(`/complete_task/${btn.dataset.id}`,{method:"POST"}); const d=await r.json(); if(d.success){ document.getElementById("points").textContent=d.points||document.getElementById("points").textContent; fetchTasksAndRender(); } else { alert("Could not complete task"); btn.disabled=false; } } catch(e){ console.error(e); btn.disabled=false; } };
+    });
+    document.querySelectorAll(".btn-edit").forEach(btn=>{ btn.onclick=()=>openEditModal(btn.dataset.id,btn.dataset.title,btn.dataset.time); });
+    checkTaskLimit();
+  } catch(e){ console.error(e); }
+}
 
+// Initial load
+fetchTasksAndRender();
 </script>
-
 </body>
 </html>

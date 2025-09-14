@@ -1031,6 +1031,13 @@ def money_page():
 def build_page():
     
     return render_template("dashboard/build.html", user=current_user)
+
+@app.route('/course/<course_name>')
+def course_page(course_name):
+    # You can render different templates or dynamically show content based on the course
+    return render_template('course_page.html', course=course_name)
+
+
 # ----------------- STARTUP -----------------
 if __name__ == "__main__":
     with app.app_context():

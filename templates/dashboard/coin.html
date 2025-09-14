@@ -3,70 +3,101 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Coin Collector</title>
+  <title>🪙 Coin Collector Game</title>
   <style>
+    /* ===== General Styles ===== */
     body {
-      font-family: Arial, sans-serif;
-      background: linear-gradient(135deg,#050615,#0f1630);
-      color: #00d0ff;
+      font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+      background: linear-gradient(135deg, #050615, #0f1630);
+      color: #eaf6ff;
       display: flex;
       flex-direction: column;
       align-items: center;
-      justify-content: flex-start;
+      padding: 20px;
       min-height: 100vh;
       margin: 0;
-      padding: 20px;
     }
-    h1 { margin-bottom: 10px; }
+
+    h1, h2, h3 { margin: 10px 0; text-align: center; }
+    p { margin: 5px 0; text-align: center; }
+
+    /* ===== Instructions ===== */
+    .instructions {
+      background: #111b3a;
+      padding: 15px 20px;
+      border-radius: 12px;
+      border-left: 4px solid #00d0ff;
+      font-size: 14px;
+      max-width: 600px;
+      margin-bottom: 20px;
+    }
+
+    /* ===== Game Area ===== */
     #gameArea {
       position: relative;
       width: 80%;
-      height: 60vh;
+      height: 50vh;
       border: 2px solid #00d0ff;
       border-radius: 12px;
-      margin-top: 20px;
       background: #0a1224;
       overflow: hidden;
+      margin-bottom: 15px;
     }
+
     .coin {
       position: absolute;
       font-size: 40px;
       cursor: pointer;
       transition: transform 0.1s;
     }
-    .coin:hover {
-      transform: scale(1.3);
-    }
+    .coin:hover { transform: scale(1.3) rotate(20deg); }
+
+    /* ===== Info & Score ===== */
     #info {
-      margin-top: 15px;
-      font-size: 18px;
       display: flex;
-      gap: 40px;
+      gap: 50px;
+      font-size: 18px;
+      margin-bottom: 10px;
     }
+
     #gameOver {
       display: none;
-      font-size: 22px;
+      font-size: 20px;
       font-weight: bold;
       margin-top: 20px;
       color: #ff8fa3;
+      text-align: center;
     }
+
     button {
       padding: 10px 20px;
       margin-top: 15px;
       border: none;
-      border-radius: 10px;
+      border-radius: 12px;
       background: #00d0ff;
       color: #050615;
       font-weight: bold;
       cursor: pointer;
+      transition: transform 0.2s ease, filter 0.2s ease;
     }
-    button:hover {
-      transform: scale(1.05);
-    }
+    button:hover { transform: scale(1.05); filter: brightness(1.1); }
+    .restart-btn { background: #ffd24d; color: #001; margin-right: 10px; }
+
   </style>
 </head>
 <body>
-  <h1>🪙 Coin Collector</h1>
+
+  <h1>🪙 Coin Collector Game</h1>
+
+  <div class="instructions">
+    <h3>How to Play:</h3>
+    <p>1️⃣ You have <strong>30 seconds</strong> to collect as many coins as possible.</p>
+    <p>2️⃣ Click on the coins as they appear in the game area.</p>
+    <p>3️⃣ Each coin gives <strong>10 points</strong>.</p>
+    <p>4️⃣ Coins disappear after a short time, so click fast!</p>
+    <p>5️⃣ Try to beat your high score!</p>
+  </div>
+
   <div id="info">
     <div>Score: <span id="score">0</span></div>
     <div>Time Left: <span id="timer">30</span>s</div>
@@ -75,7 +106,11 @@
   <div id="gameArea"></div>
 
   <div id="gameOver">⏳ Time’s up! Final Score: <span id="finalScore"></span></div>
-  <a href="{{ url_for('dice') }}"><button>🎲 Back to Dice</button></a>
+
+  <div>
+    <button class="restart-btn" onclick="restartGame()">🔄 Restart Game</button>
+    <a href="{{ url_for('dice') }}"><button>🎲 Back to Dice</button></a>
+  </div>
 
   <script>
     const gameArea = document.getElementById("gameArea");
@@ -88,11 +123,19 @@
     let timeLeft = 30;
     let gameInterval, coinInterval;
 
+    // ===== Start Game =====
     function startGame() {
+      score = 0;
+      timeLeft = 30;
+      scoreDisplay.textContent = score;
+      timerDisplay.textContent = timeLeft;
+      gameOverDiv.style.display = "none";
+
       gameInterval = setInterval(updateTimer, 1000);
       coinInterval = setInterval(spawnCoin, 800);
     }
 
+    // ===== Spawn Coins =====
     function spawnCoin() {
       const coin = document.createElement("div");
       coin.classList.add("coin");
@@ -112,51 +155,47 @@
 
       gameArea.appendChild(coin);
 
-      setTimeout(() => coin.remove(), 1500); // coin disappears if not clicked
+      setTimeout(() => coin.remove(), 1500);
     }
 
+    // ===== Timer Update =====
     function updateTimer() {
       timeLeft--;
       timerDisplay.textContent = timeLeft;
 
-      if (timeLeft <= 0) {
-        endGame();
-      }
+      if (timeLeft <= 0) endGame();
     }
 
+    // ===== End Game =====
     function endGame() {
       clearInterval(gameInterval);
       clearInterval(coinInterval);
       gameArea.innerHTML = "";
       gameOverDiv.style.display = "block";
       finalScoreSpan.textContent = score;
+
+      // Send score to backend
+      fetch("/update_score", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ score: score })
+      })
+      .then(res => res.json())
+      .then(data => console.log("Score saved:", data))
+      .catch(err => console.error("Error saving score:", err));
     }
 
-    // Start game on load
+    // ===== Restart Game =====
+    function restartGame() {
+      clearInterval(gameInterval);
+      clearInterval(coinInterval);
+      gameArea.innerHTML = "";
+      startGame();
+    }
+
+    // Auto-start game
     startGame();
-
-    function endGame() {
-  clearInterval(gameInterval);
-  clearInterval(coinInterval);
-  gameArea.innerHTML = "";
-  gameOverDiv.style.display = "block";
-  finalScoreSpan.textContent = score;
-
-  // Send final score to backend
-  fetch("/update_score", {
-    method: "POST",
-    headers: {
-      "Content-Type": "application/json"
-    },
-    body: JSON.stringify({ score: score })
-  })
-  .then(res => res.json())
-  .then(data => {
-    console.log("Score saved:", data);
-  })
-  .catch(err => console.error("Error saving score:", err));
-}
-
   </script>
+
 </body>
 </html>

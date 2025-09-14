@@ -12,12 +12,12 @@ body {
   display: flex;
   flex-direction: column;
   align-items: center;
-  justify-content: center;
+  justify-content: flex-start;
   min-height: 100vh;
   margin: 0;
   padding: 20px;
 }
-h1 { margin-bottom: 10px; }
+h1 { margin-bottom: 10px; text-align:center; }
 .quiz-box {
   background: #0f1630;
   padding: 20px;
@@ -26,6 +26,7 @@ h1 { margin-bottom: 10px; }
   width: 100%;
   max-width: 500px;
   text-align: center;
+  box-shadow: 0 0 15px rgba(0,208,255,0.3);
 }
 button {
   padding: 10px 20px;
@@ -37,86 +38,147 @@ button {
   cursor: pointer;
   margin: 8px 0;
   width: 80%;
-  transition: transform 0.2s ease;
+  transition: transform 0.2s ease, filter 0.2s ease;
 }
-button:hover { transform: scale(1.05); }
-.score { margin-top: 15px; font-weight: bold; }
+button:hover { transform: scale(1.05); filter: brightness(1.1); }
+.score { margin-top: 10px; font-weight: bold; font-size: 18px; }
+.progress-bar {
+  width: 100%;
+  background: #111b3a;
+  border-radius: 12px;
+  overflow: hidden;
+  margin: 10px 0;
+}
+.progress-bar-inner {
+  height: 20px;
+  width: 0%;
+  background: #00ff6a;
+  transition: width 0.3s ease;
+}
+#timer { font-weight: bold; margin-top:10px; }
+#hint-btn { width: auto; padding: 5px 15px; margin-top:10px; }
+#endPopup {
+  position: fixed;
+  top: 30%;
+  left: 50%;
+  transform: translate(-50%,-50%);
+  background: #0f1630;
+  border: 2px solid #00d0ff;
+  padding: 30px 40px;
+  border-radius: 15px;
+  text-align:center;
+  display:none;
+  font-size:22px;
+  color:#00ff6a;
+  box-shadow:0 0 25px rgba(0,255,106,0.5);
+  z-index:1000;
+}
 </style>
 </head>
 <body>
+
 <h1>💰 Money Quiz Game</h1>
+
 <div class="quiz-box" id="quiz-box">
   <p id="question">Loading question...</p>
   <div id="answers"></div>
+  <button id="hint-btn" onclick="useHint()">💡 Hint</button>
+  <div class="progress-bar">
+    <div class="progress-bar-inner" id="progress"></div>
+  </div>
+  <div id="timer">⏱ Time left: 15s</div>
 </div>
 
-<div class="score" id="score"></div>
+<div class="score" id="score">Score: 0</div>
 
 <a href="{{ url_for('quests_page') }}">
   <button>⬅ Back to Quests</button>
 </a>
 
+<div id="endPopup"></div>
+
+<!-- Sounds -->
+<audio id="correctSound" src="/static/correct.mp3" preload="auto"></audio>
+<audio id="wrongSound" src="/static/wrong.mp3" preload="auto"></audio>
+
 <script>
 const questions = [
-  {
-    q: "Which is a good way to save money?",
-    options: ["Spend on sales", "Use a budget", "Ignore bills", "Buy lottery tickets"],
-    answer: 1
-  },
-  {
-    q: "What is interest?",
-    options: ["Money you earn or pay on savings/loans","A type of coin","A bank branch","None"],
-    answer: 0
-  },
-  {
-    q: "What is a budget?",
-    options: ["Plan for spending and saving","A type of wallet","A shopping app","A bank account"],
-    answer: 0
-  },
-  {
-    q: "Why save money?",
-    options: ["For emergencies","For parties","To buy everything","To spend immediately"],
-    answer: 0
-  }
+  { q:"Which is a good way to save money?", options:["Spend on sales","Use a budget","Ignore bills","Buy lottery tickets"], answer:1, hint:"It involves planning your spending." },
+  { q:"What is interest?", options:["Money you earn or pay on savings/loans","A type of coin","A bank branch","None"], answer:0, hint:"It's what banks pay you or charge you." },
+  { q:"What is a budget?", options:["Plan for spending and saving","A type of wallet","A shopping app","A bank account"], answer:0, hint:"It's a plan to manage money." },
+  { q:"Why save money?", options:["For emergencies","For parties","To buy everything","To spend immediately"], answer:0, hint:"It's for unexpected needs." }
 ];
 
-let current = 0;
-let score = 0;
+let shuffledQuestions = [...questions].sort(()=>Math.random()-0.5);
+let current=0, score=0, timer=15, hintUsed=false;
+let timerInterval;
 
-function loadQuestion() {
-  const q = questions[current];
-  document.getElementById("question").textContent = q.q;
-
-  const answersDiv = document.getElementById("answers");
-  answersDiv.innerHTML = "";
-  q.options.forEach((opt, idx) => {
-    const btn = document.createElement("button");
-    btn.textContent = opt;
-    btn.onclick = () => checkAnswer(idx);
+function loadQuestion(){
+  if(current>=shuffledQuestions.length){endGame();return;}
+  const q = shuffledQuestions[current];
+  document.getElementById("question").textContent=q.q;
+  const answersDiv=document.getElementById("answers");
+  answersDiv.innerHTML="";
+  q.options.forEach((opt, idx)=>{
+    const btn=document.createElement("button");
+    btn.textContent=opt;
+    btn.onclick=()=>checkAnswer(idx);
     answersDiv.appendChild(btn);
   });
-  document.getElementById("score").textContent = `Score: ${score}`;
+  document.getElementById("score").textContent=`Score: ${score}`;
+  document.getElementById("progress").style.width=`${(current/shuffledQuestions.length)*100}%`;
+  timer=15; hintUsed=false; document.getElementById("hint-btn").disabled=false;
+  startTimer();
 }
 
-function checkAnswer(idx) {
-  if(idx === questions[current].answer) {
-    score += 10; // points per correct answer
+function startTimer(){
+  clearInterval(timerInterval);
+  document.getElementById("timer").textContent=`⏱ Time left: ${timer}s`;
+  timerInterval=setInterval(()=>{
+    timer--;
+    document.getElementById("timer").textContent=`⏱ Time left: ${timer}s`;
+    if(timer<=0){clearInterval(timerInterval); alert("⏳ Time's up!"); nextQuestion();}
+  },1000);
+}
+
+function checkAnswer(idx){
+  clearInterval(timerInterval);
+  const q=shuffledQuestions[current];
+  if(idx===q.answer){
+    score+=10;
+    document.getElementById("correctSound").play();
     alert("✅ Correct!");
-  } else {
-    score -= 5;
-    alert("❌ Wrong!");
+  }else{
+    score-=5;
+    document.getElementById("wrongSound").play();
+    alert(`❌ Wrong! Correct answer: ${q.options[q.answer]}`);
   }
-  current++;
-  if(current < questions.length) {
-    loadQuestion();
-  } else {
-    document.getElementById("quiz-box").innerHTML = `<h3>Game Over! Your final score: ${score}</h3>`;
-    document.getElementById("score").textContent = "";
-  }
+  nextQuestion();
 }
 
-// Start game
+function nextQuestion(){
+  current++;
+  loadQuestion();
+}
+
+function useHint(){
+  if(hintUsed) return;
+  const q=shuffledQuestions[current];
+  alert(`💡 Hint: ${q.hint}`);
+  hintUsed=true;
+  document.getElementById("hint-btn").disabled=true;
+}
+
+function endGame(){
+  clearInterval(timerInterval);
+  const popup=document.getElementById("endPopup");
+  let msg=score>=30?"🎉 Excellent! You know your money!":"❌ Try Again! Learn more about saving.";
+  popup.innerHTML=`${msg}<br>Final Score: ${score}`;
+  popup.style.display="block";
+}
+
 loadQuestion();
 </script>
+
 </body>
 </html>

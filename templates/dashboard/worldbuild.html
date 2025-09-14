@@ -3,129 +3,206 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>World Build Game</title>
+<title>Superhero Word Search</title>
 <style>
   body {
     font-family: 'Arial', sans-serif;
-    background: linear-gradient(135deg,#050615,#00d0ff);
+    background: linear-gradient(135deg, #0a0f1c, #1a2233);
     color: #fff;
     display: flex;
     flex-direction: column;
     align-items: center;
-    min-height: 100vh;
-    margin: 0;
-    padding: 20px;
+    padding: 30px 10px;
   }
 
-  h1 { margin-bottom: 15px; font-size: 32px; text-align: center; }
-  .choices { margin: 15px 0; display: flex; flex-wrap: wrap; gap: 10px; justify-content: center; }
-  .choice {
-    padding: 12px 20px;
-    border: none; border-radius: 12px;
-    background: #00d0ff; color: #050615;
-    font-weight: bold; cursor: pointer;
-    transition: transform 0.2s;
+  h1 {
+    color: #ffcc00;
+    text-shadow: 0 0 12px #ffcc00;
+    margin-bottom: 5px;
+    font-size: 2.2em;
   }
-  .choice:hover { transform: scale(1.05); }
-  #story {
-    margin-top: 20px; padding: 20px;
-    background: rgba(0,0,0,0.4);
-    border-radius: 15px; max-width: 500px;
-    text-align: center; font-size: 18px;
+
+  #timer {
+    font-size: 1.5em;
+    color: #ff6666;
+    font-weight: bold;
+    margin-bottom: 15px;
+    text-shadow: 0 0 6px #ff6666;
   }
-  button {
-    margin-top: 15px;
-    padding: 12px 25px;
-    border: none; border-radius: 12px;
-    background: #00d0ff; color: #050615;
-    font-weight: bold; cursor: pointer;
-    transition: transform 0.2s;
+
+  #backButton {
+    margin-bottom: 20px;
+    padding: 10px 20px;
+    background: #ffcc00;
+    color: #11182d;
+    font-weight: bold;
+    border: none;
+    border-radius: 8px;
+    cursor: pointer;
+    transition: 0.3s;
+    text-decoration: none;
   }
-  button:hover { transform: scale(1.05); }
+  #backButton:hover {
+    background: #ffc107;
+    transform: scale(1.05);
+  }
+
+  #grid {
+    display: grid;
+    grid-template-columns: repeat(10, 50px);
+    grid-gap: 6px;
+    margin-top: 10px;
+  }
+
+  .cell {
+    width: 50px;
+    height: 50px;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    background: #11182d;
+    border-radius: 6px;
+    cursor: pointer;
+    user-select: none;
+    font-weight: bold;
+    font-size: 20px;
+    transition: all 0.2s ease;
+    box-shadow: 0 2px 5px rgba(0,0,0,0.3);
+  }
+
+  .cell.selected { background: #4dabf7; color: #fff; }
+  .cell.found { background: #28a745; color: #fff; }
+
+  #wordList {
+    margin-top: 25px;
+    display: flex;
+    gap: 15px;
+    flex-wrap: wrap;
+    justify-content: center;
+  }
+
+  .word {
+    padding: 6px 12px;
+    background: #11182d;
+    border-radius: 6px;
+    font-weight: bold;
+    font-size: 16px;
+    box-shadow: 0 1px 4px rgba(0,0,0,0.5);
+  }
+
+  .word.found { background: #28a745; color: #fff; }
+
+  @media(max-width:600px){
+    #grid {
+      grid-template-columns: repeat(10, 35px);
+      grid-gap: 4px;
+    }
+    .cell { width: 35px; height: 35px; font-size: 16px; }
+    .word { font-size: 14px; padding: 4px 8px; }
+  }
 </style>
 </head>
 <body>
 
-<h1>🌍 World Build Game</h1>
-<div id="game">
-  <p id="question">Choose your terrain:</p>
-  <div class="choices" id="choices"></div>
-</div>
+<h1>🦸 Superhero Word Search</h1>
 
-<div id="story" style="display:none;"></div>
+<!-- Timer -->
+<div id="timer">03:00</div>
 
-<div>
-  <button id="restartBtn" style="display:none;">Restart</button>
-  <button id="backBtn">← Back to Academics</button>
-</div>
+<!-- Back button -->
+<a id="backButton" href="academics">⬅ Back to Academics</a>
+
+<!-- Grid and word list -->
+<div id="grid"></div>
+<div id="wordList"></div>
 
 <script>
-const questions = [
-  { text: "Choose your terrain:", options: ["🏞️ Forest", "🏜️ Desert", "🌊 Ocean", "⛰️ Mountains"] },
-  { text: "Choose your civilization:", options: ["👩‍🌾 Farmers", "⚔️ Warriors", "🔬 Scientists", "🧭 Explorers"] },
-  { text: "Choose a special feature:", options: ["✨ Magic", "🤖 Technology", "☮️ Peace", "🔥 Chaos"] }
-];
+const gridSize = 10;
+const letters = "ABCDEFGHIJKLMNOPQRSTUVWXYZ";
+const words = ["BATMAN","WONDERWOMAN","FLASH","POWERMAN","SUPERMAN","AQUAMAN","SPIDERMAN","THEHULK","IRONMAN"];
 
-let answers = [];
-let currentStep = 0;
+let grid = [];
+let selectedCells = [];
+let foundWords = [];
 
-const questionEl = document.getElementById('question');
-const choicesEl = document.getElementById('choices');
-const storyEl = document.getElementById('story');
-const restartBtn = document.getElementById('restartBtn');
-const backBtn = document.getElementById('backBtn');
+const gridEl = document.getElementById('grid');
+const wordListEl = document.getElementById('wordList');
+const timerEl = document.getElementById('timer');
 
-function loadQuestion(){
-  const q = questions[currentStep];
-  questionEl.textContent = q.text;
-  choicesEl.innerHTML = '';
-  q.options.forEach(opt => {
-    const btn = document.createElement('button');
-    btn.className = 'choice';
-    btn.textContent = opt;
-    btn.onclick = () => selectOption(opt);
-    choicesEl.appendChild(btn);
-  });
-}
+// Initialize word list display
+words.forEach(word => {
+  const wordEl = document.createElement('div');
+  wordEl.className = 'word';
+  wordEl.textContent = word;
+  wordListEl.appendChild(wordEl);
+});
 
-function selectOption(option){
-  answers.push(option);
-  currentStep++;
-  if(currentStep < questions.length){
-    loadQuestion();
-  } else {
-    showStory();
+// Fill grid randomly
+for(let i=0; i<gridSize; i++){
+  grid[i] = [];
+  for(let j=0; j<gridSize; j++){
+    const char = letters[Math.floor(Math.random()*letters.length)];
+    grid[i][j] = char;
+    const cell = document.createElement('div');
+    cell.className = 'cell';
+    cell.textContent = char;
+    cell.dataset.row = i;
+    cell.dataset.col = j;
+    cell.addEventListener('click', () => selectCell(cell));
+    gridEl.appendChild(cell);
   }
 }
 
-function showStory(){
-  document.getElementById('game').style.display = 'none';
-  storyEl.style.display = 'block';
-  restartBtn.style.display = 'inline-block';
-
-  const [terrain, civ, feature] = answers;
-  storyEl.innerHTML = `
-    <h2>Your World 🌍</h2>
-    <p>You built a land of <b>${terrain}</b>, ruled by <b>${civ}</b>, where <b>${feature}</b> shapes destiny.</p>
-    <p>✨ Adventure begins in your new world!</p>
-  `;
+// Handle cell selection
+function selectCell(cell){
+  if(cell.classList.contains('found')) return;
+  cell.classList.toggle('selected');
+  const key = cell.dataset.row + '-' + cell.dataset.col;
+  if(selectedCells.includes(key)){
+    selectedCells = selectedCells.filter(k=>k!==key);
+  } else {
+    selectedCells.push(key);
+  }
+  checkWord();
 }
 
-restartBtn.addEventListener('click', () => {
-  answers = [];
-  currentStep = 0;
-  document.getElementById('game').style.display = 'block';
-  storyEl.style.display = 'none';
-  restartBtn.style.display = 'none';
-  loadQuestion();
-});
+// Check for valid word
+function checkWord(){
+  const selectedWord = selectedCells.map(key=>{
+    const [row,col] = key.split('-');
+    return grid[row][col];
+  }).join('');
 
-backBtn.addEventListener('click', () => {
-  window.location.href = '/academics';
-});
+  if(words.includes(selectedWord) && !foundWords.includes(selectedWord)){
+    foundWords.push(selectedWord);
+    document.querySelectorAll('.cell.selected').forEach(cell => {
+      cell.classList.add('found');
+      cell.classList.remove('selected');
+    });
+    document.querySelectorAll('.word').forEach(w=>{
+      if(w.textContent === selectedWord) w.classList.add('found');
+    });
+    selectedCells = [];
+    if(foundWords.length === words.length){
+      setTimeout(()=>alert("🎉 Congratulations! You found all words!"), 100);
+      clearInterval(timerInterval);
+    }
+  }
+}
 
-// Start game
-loadQuestion();
+// Timer setup
+let timeLeft = 180; // 3 minutes in seconds
+const timerInterval = setInterval(() => {
+  let minutes = Math.floor(timeLeft / 60);
+  let seconds = timeLeft % 60;
+  timerEl.textContent = `${minutes.toString().padStart(2,'0')}:${seconds.toString().padStart(2,'0')}`;
+  timeLeft--;
+  if(timeLeft < 0){
+    clearInterval(timerInterval);
+    alert("⏰ Time's up! Game over.");
+    document.querySelectorAll('.cell').forEach(cell => cell.style.pointerEvents = 'none'); // disable clicking
+  }
+}, 1000);
 </script>
 
 </body>

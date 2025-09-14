@@ -1,4 +1,3 @@
-
 <!DOCTYPE html>
 <html lang="en">
 <head>
@@ -30,9 +29,13 @@
 
     /* Main */
     .main { flex:1; padding:28px; display:flex; flex-direction:column; gap:18px; min-height:100vh; }
-    .header-row { display:flex; justify-content:space-between; align-items:center; gap:12px; }
+    .header-row { display:flex; justify-content:space-between; align-items:center; gap:12px; flex-wrap:wrap; }
     h1 { margin:0; color:var(--accent); font-size:22px; }
     .points-badge { background:var(--card); padding:8px 12px; border-radius:12px; font-weight:700; color:var(--accent); }
+    #startFinancialCourse:hover {
+  transform: scale(1.05);
+  filter: brightness(1.1);
+}
 
     /* Tabs */
     .quest-tabs { display:flex; gap:12px; margin-top:12px; }
@@ -52,7 +55,48 @@
     .quest-controls { display:flex; gap:6px; margin-top:6px; }
     .quest-controls button { padding:6px 10px; border:none; border-radius:6px; font-weight:600; cursor:pointer; background:var(--accent); color:#001; }
 
+    .btn { padding:8px 12px; border-radius:10px; border:none; background:var(--accent); color:#001; cursor:pointer; font-weight:700; }
+
+    /* Modal */
+    .overlay {
+      position: fixed; inset:0; display:none; background: rgba(0,0,0,0.7); z-index:1200; justify-content:center; align-items:center;
+    }
+    .overlay.show { display:flex; }
+    .modal {
+      width: 480px; max-width:calc(100%-40px); background: var(--panel); border-radius:12px; padding:18px;
+      box-shadow:0 0 40px rgba(0,0,0,0.7); border:1px solid rgba(0,208,255,0.06);
+    }
+    .modal h4 { margin:0; color:var(--accent); }
+    .modal .controls { margin-top:12px; display:flex; gap:10px; justify-content:center; }
+    .modal iframe { margin-top:12px; width:100%; height:250px; border-radius:8px; border:none; }
+    .small { font-size:13px; color:var(--muted); text-align:center; margin-top:8px; }
+
     @media (max-width:900px) { .sidebar { display:none; } }
+    /* Dice Button Styling */
+#playDiceBtn {
+  padding: 10px 16px;
+  font-size: 16px;
+  font-weight: 700;
+  border: none;
+  border-radius: 12px;
+  background: linear-gradient(135deg, #ffd24d, #ff8f00);
+  color: #001;
+  cursor: pointer;
+  box-shadow: 0 4px 8px rgba(0,0,0,0.3);
+  transition: transform 0.2s ease, box-shadow 0.2s ease, filter 0.2s ease;
+}
+
+#playDiceBtn:hover {
+  transform: scale(1.08);
+  box-shadow: 0 8px 16px rgba(0,0,0,0.4);
+  filter: brightness(1.1);
+}
+
+#playDiceBtn:active {
+  transform: scale(0.98);
+  box-shadow: 0 3px 6px rgba(0,0,0,0.2);
+}
+
   </style>
 </head>
 <body>
@@ -80,11 +124,15 @@
   <div class="main">
     <div class="header-row">
       <h1>Quests</h1>
-      <div class="points-badge">XP: <span id="points-display">{{ user.points or 0 }}</span></div>
+      <div class="top-controls">
+        <div class="points-badge">XP: <span id="points-display">{{ user.points or 0 }}</span></div>
+      <a href="{{ url_for('dice') }}">
+  <button type="button" id="playDiceBtn">🎲 Play Dice</button>
+</a>
+
+        <button class="btn" id="startFinancialCourse">📚 Financial Education</button>
+      </div>
     </div>
- <a href="{{ url_for('dice') }}">
-      <button type="button">🎲 Play Dice</button>
-    </a>
 
     <!-- Tabs -->
     <div class="quest-tabs">
@@ -107,32 +155,30 @@
       </div>
       {% endfor %}
     </div>
+
   </div>
-    
 
-  
-  <!-- Floating Voice Button -->
-  <button id="micBtn" style="
-    position: fixed; bottom: 20px; right: 20px; 
-    width: 60px; height: 60px; border-radius: 50%;
-    background: #00d0ff; color: #050615; font-size: 28px;
-    border: none; cursor: pointer; box-shadow: 0 4px 15px rgba(0,0,0,0.3);">
-    🎤
-  </button>
-
-  <!-- Voice Assistant Feedback -->
-  <div id="voiceResponse" style="
-    position: fixed; bottom: 100px; right: 20px;
-    background: #0f1630; color: #00d0ff;
-    padding: 12px 16px; border-radius: 12px; 
-    display: none; max-width: 280px;">
+  <!-- Financial Education Modal -->
+  <div class="overlay" id="financialCourseModal">
+    <div class="modal">
+      <h4>Financial Education — Lesson</h4>
+      <div id="lessonContent" class="small">Lesson text will appear here.</div>
+      <iframe id="lessonVideo" src="" allowfullscreen></iframe>
+      <div class="controls">
+        <button class="btn" id="prevLesson">⬅ Previous</button>
+        <button class="btn" id="nextLesson">Next ➡</button>
+        <button class="btn cancel" id="exitCourse">❌ Exit</button>
+      </div>
+      <div class="small">
+        Lesson <span id="lessonNumber">1</span> / <span id="totalLessons">1</span>
+      </div>
+    </div>
   </div>
 
   <!-- Click Sound -->
   <audio id="clickSound" src="/static/click.mp3" preload="auto"></audio>
 
   <script>
-    // Play click sound on any button or link
     const clickSound = document.getElementById("clickSound");
     document.addEventListener("click", (e) => {
       if (e.target.tagName === "BUTTON" || e.target.tagName === "A") {
@@ -140,9 +186,58 @@
         clickSound.play();
       }
     });
+
+    const financialLessons = [
+      { text: "Lesson 1 — Basics of Money", video: "https://www.youtube.com/embed/ouvbeb2wSGA" },
+      { text: "Lesson 2 — Budgeting & Saving", video: "https://www.youtube.com/embed/4XZIv4__sQA" },
+      { text: "Lesson 3 — Inflation", video: "https://www.youtube.com/embed/l69tTAE7qxg" },
+      { text: "Lesson 4 — Side Hustles", video: "https://www.youtube.com/embed/8EUFr7ehZPA" },
+      { text: "Lesson 5 — Entrepreneurship", video: "https://www.youtube.com/embed/yng11BVjfvM" },
+      { text: "Lesson 6 — Business Strategies", video: "https://www.youtube.com/embed/9VlvbpXwLJs" },
+      { text: "Lesson 7 — Investments & Planning", video: "https://www.youtube.com/embed/hZXJWT58YhA" },
+      { text: "Lesson 8 — Financial Laws & Taxes", video: "https://www.youtube.com/embed/1ZQhbc6VgjI" },
+      { text: "Lesson 9 — Final Quiz & Review", video: "https://www.youtube.com/embed/NRQ0GyyOg_Y" }
+    ];
+
+    let currentLesson = 0;
+    const modal = document.getElementById('financialCourseModal');
+    const lessonContent = document.getElementById('lessonContent');
+    const lessonVideo = document.getElementById('lessonVideo');
+    const lessonNumber = document.getElementById('lessonNumber');
+    const totalLessons = document.getElementById('totalLessons');
+
+    document.getElementById('startFinancialCourse').onclick = () => {
+      currentLesson = 0;
+      totalLessons.textContent = financialLessons.length;
+      showLesson();
+      modal.classList.add('show');
+    };
+
+    document.getElementById('nextLesson').onclick = () => {
+      if (currentLesson < financialLessons.length - 1) {
+        currentLesson++;
+        showLesson();
+      } else {
+        alert("🎉 You have completed the Financial Education course!");
+        modal.classList.remove('show');
+      }
+    };
+
+    document.getElementById('prevLesson').onclick = () => {
+      if (currentLesson > 0) {
+        currentLesson--;
+        showLesson();
+      }
+    };
+
+    document.getElementById('exitCourse').onclick = () => modal.classList.remove('show');
+
+    function showLesson() {
+      lessonContent.textContent = financialLessons[currentLesson].text;
+      lessonVideo.src = financialLessons[currentLesson].video;
+      lessonNumber.textContent = currentLesson + 1;
+    }
   </script>
 
-  <script src="{{ url_for('static', filename='js/quests.js') }}"></script>
-  <script src="{{ url_for('static', filename='js/voice_assistant.js') }}"></script>
 </body>
 </html>

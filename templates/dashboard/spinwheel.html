@@ -1,123 +1,36 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-<meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width,initial-scale=1" />
 <title>Spin Wheel – SAM AI</title>
 <style>
-  body {
-    margin: 0;
-    font-family: 'Segoe UI', sans-serif;
-    background: #0a0f1c;
-    color: #eaf6ff;
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    justify-content: center;
-    height: 100vh;
-  }
-
-  h1 {
-    margin-bottom: 15px;
-    font-size: 28px;
-    color: #4dabf7;
-    text-shadow: 0 0 8px #1a73e8;
-  }
-
-  .wheel-container {
-    position: relative;
-    width: 400px;
-    height: 400px;
-    margin: 20px auto;
-  }
-
-  canvas {
-    border-radius: 50%;
-    box-shadow: 0 0 20px rgba(77,171,247,0.6);
-  }
-
-  .spin-btn {
-    position: absolute;
-    top: 50%;
-    left: 50%;
-    transform: translate(-50%, -50%);
-    width: 90px;
-    height: 90px;
-    border-radius: 50%;
-    background: linear-gradient(145deg,#1a73e8,#4dabf7);
-    color: #fff;
-    font-size: 18px;
-    font-weight: bold;
-    border: none;
-    cursor: pointer;
-    box-shadow: 0 0 10px rgba(77,171,247,0.8);
-    transition: 0.3s;
-  }
-
-  .spin-btn:hover {
-    background: linear-gradient(145deg,#4dabf7,#1a73e8);
-    box-shadow: 0 0 20px rgba(77,171,247,1);
-  }
-
-  .result-box {
-    margin-top: 20px;
-    font-size: 20px;
-    padding: 10px 20px;
-    border: 1px solid #4dabf7;
-    border-radius: 12px;
-    background: #11182d;
-    min-height: 50px;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    box-shadow: 0 0 10px rgba(77,171,247,0.3);
-    transition: all 0.3s ease;
-  }
-
-  .done-btn {
-    margin-top: 15px;
-    padding: 10px 20px;
-    border-radius: 10px;
-    font-size: 18px;
-    font-weight: bold;
-    cursor: pointer;
-    background: #28a745;
-    color: white;
-    border: none;
-    display: none;
-    box-shadow: 0 0 10px rgba(40,167,69,0.6);
-    transition: 0.3s;
-  }
-
-  .done-btn:hover {
-    background: #218838;
-    box-shadow: 0 0 20px rgba(40,167,69,1);
-  }
-
-  .back-btn {
-    margin-top: 10px;
-    padding: 10px 20px;
-    border-radius: 10px;
-    font-size: 18px;
-    font-weight: bold;
-    cursor: pointer;
-    background: #007bff;
-    color: white;
-    border: none;
-    box-shadow: 0 0 10px rgba(0,123,255,0.6);
-    transition: 0.3s;
-    text-decoration: none;
-    display: inline-block;
-  }
-
-  .back-btn:hover {
-    background: #0056b3;
-    box-shadow: 0 0 20px rgba(0,123,255,1);
-  }
-
+  :root{ --bg:#0a0f1c; --panel:#11182d; --accent:#4dabf7; --good:#28a745; --bad:#dc3545; --gold:#f1c40f;}
+  body{ margin:0; font-family: "Segoe UI",sans-serif; background:var(--bg); color:#eaf6ff; display:flex; flex-direction:column; align-items:center; justify-content:center; min-height:100vh; padding:18px; box-sizing:border-box;}
+  h1{ margin:0 0 16px; font-size:28px; color:var(--accent); text-shadow:0 0 8px #1a73e8; }
+  .wheel-container{ position:relative; width:400px; height:400px; margin:8px 0; }
+  canvas{ width:100%; height:100%; display:block; border-radius:50%; box-shadow:0 0 20px rgba(77,171,247,0.6); background:transparent; }
+  .spin-btn{ position:absolute; top:50%; left:50%; transform:translate(-50%,-50%); width:90px; height:90px; border-radius:50%; background:linear-gradient(145deg,#1a73e8,#4dabf7); color:#fff; font-size:18px; font-weight:700; border:none; cursor:pointer; box-shadow:0 0 10px rgba(77,171,247,0.8); }
+  .spin-btn:disabled{ opacity:.5; cursor:not-allowed; }
+  .result-box{ margin-top:18px; font-size:18px; padding:10px 16px; border-radius:12px; background:var(--panel); border:1px solid rgba(77,171,247,0.14); min-height:48px; display:flex; align-items:center; justify-content:center; box-shadow:0 0 10px rgba(77,171,247,0.2); width:400px; }
+  .back-btn{ margin-top:12px; padding:10px 18px; border-radius:10px; font-weight:700; text-decoration:none; background:#007bff; color:white; box-shadow:0 0 10px rgba(0,123,255,0.6); }
+  .score-box{ position:fixed; top:18px; right:18px; background:var(--panel); padding:8px 12px; border-radius:10px; box-shadow:0 0 12px rgba(0,0,0,.5); border:1px solid rgba(77,171,247,0.08); font-weight:700; }
+  .modal{ display:none; position:fixed; inset:0; background:rgba(0,0,0,0.7); z-index:1200; align-items:center; justify-content:center; }
+  .modal-content{ background:var(--panel); width:92%; max-width:420px; border-radius:14px; padding:18px; box-shadow:0 10px 30px rgba(0,0,0,0.6); text-align:center; }
+  .modal-content h2{ margin:0 0 6px; color:var(--accent); }
+  .timer{ color:var(--gold); font-size:22px; margin:8px 0 14px; font-weight:700; }
+  .modal-actions{ display:flex; gap:12px; justify-content:center; flex-wrap:wrap; }
+  .btn{ padding:10px 16px; border-radius:10px; font-weight:700; cursor:pointer; border:none; color:white; }
+  .btn.complete{ background:var(--good); box-shadow:0 0 10px rgba(40,167,69,0.45); }
+  .btn.fail{ background:var(--bad); box-shadow:0 0 10px rgba(220,53,69,0.45); }
+  .result-modal{ display:none; position:fixed; inset:0; background:rgba(0,0,0,0.45); z-index:1300; align-items:center; justify-content:center; }
+  .result-card{ background:var(--panel); padding:18px; border-radius:12px; max-width:360px; width:90%; text-align:center; box-shadow:0 8px 30px rgba(0,0,0,0.6); }
+  .result-card h3{ margin:0 0 8px; } .result-card p{ margin:8px 0; } .result-close{ margin-top:10px; padding:8px 14px; border-radius:10px; font-weight:700; cursor:pointer; border:none; background:#444; color:white; }
+  @media (max-width:480px){ .wheel-container{ width:320px; height:320px; } .result-box,.back-btn{ width:320px; } }
 </style>
 </head>
 <body>
+  <div class="score-box" id="scoreBox">Points: 0</div>
   <h1>🎡 Spin the Fitness Wheel</h1>
 
   <div class="wheel-container">
@@ -126,92 +39,285 @@
   </div>
 
   <div class="result-box" id="resultBox">Click SPIN to get your exercise</div>
+<a href="{{ url_for('tasks_page') }}" class="back-btn">⬅ Back to Tasks</a>
 
-  <button class="done-btn" id="doneBtn">✅ Done</button>
-  <a href="{{ url_for('quests_page') }}" class="back-btn">⬅ Back to Tasks</a>
 
-  <script>
-    const wheelCanvas = document.getElementById('wheelCanvas');
-    const ctx = wheelCanvas.getContext('2d');
-    const spinBtn = document.getElementById('spinBtn');
-    const resultBox = document.getElementById('resultBox');
-    const doneBtn = document.getElementById('doneBtn');
+  <!-- challenge modal -->
+  <div class="modal" id="challengeModal" aria-hidden="true">
+    <div class="modal-content" role="dialog" aria-modal="true">
+      <h2 id="challengeTitle">Your Challenge</h2>
+      <div class="timer" id="timerDisplay">⏳ 30</div>
+      <div class="modal-actions">
+        <button class="btn complete" id="completeBtn">✅ Completed</button>
+        <button class="btn fail" id="failBtn">❌ Failed</button>
+      </div>
+    </div>
+  </div>
 
-    const segments = [
-      'Push-ups', 'Squats', 'Plank', 'Jumping Jacks', 
-      'Lunges', 'Burpees', 'Sit-ups', 'Yoga Stretch'
-    ];
-    const colors = ['#1abc9c','#2ecc71','#3498db','#9b59b6','#e67e22','#e74c3c','#f1c40f','#e84393'];
+  <!-- result modal -->
+  <div class="result-modal" id="resultModal" aria-hidden="true">
+    <div class="result-card" role="dialog" aria-modal="true">
+      <h3 id="resultTitle">Result</h3>
+      <p id="resultMessage">Message</p>
+      <button id="closeResult" class="result-close">Close</button>
+    </div>
+  </div>
 
-    const wheelRadius = 200;
-    let angle = 0;
-    let spinning = false;
-    let spinVelocity = 0;
+<script>
+  // elements
+  const canvas = document.getElementById('wheelCanvas');
+  const ctx = canvas.getContext('2d');
+  const spinBtn = document.getElementById('spinBtn');
+  const resultBox = document.getElementById('resultBox');
+  const scoreBox = document.getElementById('scoreBox');
 
-    function drawWheel() {
-      const step = 2 * Math.PI / segments.length;
-      for (let i = 0; i < segments.length; i++) {
-        ctx.beginPath();
-        ctx.moveTo(200,200);
-        ctx.arc(200,200,wheelRadius, step*i, step*(i+1));
-        ctx.fillStyle = colors[i];
-        ctx.fill();
-        ctx.save();
+  const challengeModal = document.getElementById('challengeModal');
+  const challengeTitle = document.getElementById('challengeTitle');
+  const timerDisplay = document.getElementById('timerDisplay');
+  const completeBtn = document.getElementById('completeBtn');
+  const failBtn = document.getElementById('failBtn');
 
-        ctx.translate(200,200);
-        ctx.rotate(step*i + step/2);
-        ctx.textAlign = 'right';
-        ctx.fillStyle = '#fff';
-        ctx.font = 'bold 16px Arial';
-        ctx.fillText(segments[i], wheelRadius - 10, 5);
-        ctx.restore();
-      }
-    }
+  const resultModal = document.getElementById('resultModal');
+  const resultTitle = document.getElementById('resultTitle');
+  const resultMessage = document.getElementById('resultMessage');
+  const closeResult = document.getElementById('closeResult');
 
-    function animateWheel() {
-      ctx.clearRect(0,0,400,400);
+  // wheel data
+  const segments = ['Push-ups','Squats','Plank','Jumping Jacks','Lunges','Burpees','Sit-ups','Yoga Stretch'];
+  const colors = ['#1abc9c','#2ecc71','#3498db','#9b59b6','#e67e22','#e74c3c','#f1c40f','#e84393'];
+
+  // geometry (logical pixels)
+  const W = canvas.width;
+  const H = canvas.height;
+  const cx = W/2;
+  const cy = H/2;
+  const wheelRadius = Math.min(cx, cy);
+
+  // state
+  let angle = 0;            // current rotation (radians) applied to wheel
+  let spinning = false;
+  let spinVelocity = 0;
+  let timerId = null;
+  let points = 0;
+  let selectedChallenge = null;
+
+  // draw single wheel (slice labels, fills)
+  function drawWheelContents() {
+    const step = 2 * Math.PI / segments.length;
+    for (let i = 0; i < segments.length; i++) {
+      ctx.beginPath();
+      ctx.moveTo(cx, cy);
+      ctx.arc(cx, cy, wheelRadius, step * i, step * (i + 1));
+      ctx.closePath();
+      ctx.fillStyle = colors[i % colors.length];
+      ctx.fill();
+
+      // draw label rotated to slice center
       ctx.save();
-      ctx.translate(200,200);
-      ctx.rotate(angle);
-      ctx.translate(-200,-200);
-      drawWheel();
+      ctx.translate(cx, cy);
+      ctx.rotate(step * i + step / 2);
+      ctx.textAlign = 'right';
+      ctx.fillStyle = '#ffffff';
+      ctx.font = 'bold 16px Arial';
+      ctx.fillText(segments[i], wheelRadius - 12, 6);
       ctx.restore();
     }
+  }
 
-    function spin() {
-      if (spinning) return;
-      spinning = true;
-      spinVelocity = Math.random()*0.3 + 0.3; // random start speed
-      const deceleration = 0.995; // slows down gradually
+  // draw pointer at top-of-wheel in canvas coords
+  function drawPointer() {
+    ctx.save();
+    // tip/base coordinates chosen so pointer sits just above wheel edge
+    const offset = 10; // how far down from top edge inside canvas
+    const baseY = cy - wheelRadius + offset; // this will be a small positive number
+    ctx.beginPath();
+    ctx.moveTo(cx - 20, baseY + 12);
+    ctx.lineTo(cx + 20, baseY + 12);
+    ctx.lineTo(cx, baseY - 14);
+    ctx.closePath();
+    ctx.fillStyle = '#ff4757';
+    ctx.fill();
 
-      const spinningAnimation = () => {
-        spinVelocity *= deceleration;
-        angle += spinVelocity;
-        animateWheel();
+    // subtle accent
+    ctx.beginPath();
+    ctx.moveTo(cx - 8, baseY + 3);
+    ctx.lineTo(cx + 8, baseY + 3);
+    ctx.lineTo(cx, baseY - 8);
+    ctx.closePath();
+    ctx.fillStyle = 'rgba(255,255,255,0.08)';
+    ctx.fill();
+    ctx.restore();
+  }
 
-        if (spinVelocity > 0.002) {
-          requestAnimationFrame(spinningAnimation);
-        } else {
-          spinning = false;
-          showResult();
-        }
+  // full frame draw (wheel rotated by `angle`, pointer drawn on top)
+  function animateWheel() {
+    ctx.clearRect(0, 0, W, H);
+    ctx.save();
+    ctx.translate(cx, cy);
+    ctx.rotate(angle);
+    ctx.translate(-cx, -cy);
+    drawWheelContents();
+    ctx.restore();
+    drawPointer();
+  }
+
+  // robust selection: pick the segment whose *center angle after rotation* is closest to the fixed pointer angle (top)
+  function getSelectedIndexFromAngle(a) {
+    const twoPi = 2 * Math.PI;
+    const step = twoPi / segments.length;
+    // pointer angle in canvas coordinate (top) normalized to [0,2π)
+    const pointer = ((-Math.PI / 2) % twoPi + twoPi) % twoPi;
+    let chosen = 0;
+    let minDiff = Infinity;
+
+    for (let i = 0; i < segments.length; i++) {
+      // center angle of slice i BEFORE rotation = step*(i + 0.5)
+      // after rotating the wheel by `a`, center is shifted by +a
+      let center = (step * (i + 0.5) + a) % twoPi;
+      if (center < 0) center += twoPi;
+      // shortest angular difference:
+      let diff = Math.abs(((center - pointer + Math.PI) % twoPi) - Math.PI);
+      if (diff < minDiff) {
+        minDiff = diff;
+        chosen = i;
       }
-      spinningAnimation();
     }
+    return chosen;
+  }
 
-    function showResult() {
-      const normalizedAngle = angle % (2*Math.PI);
-      const segmentAngle = 2*Math.PI / segments.length;
-      const index = Math.floor((2*Math.PI - normalizedAngle) / segmentAngle) % segments.length;
-      const challenge = segments[index];
-      resultBox.textContent = `🎯 Your challenge: ${challenge}`;
-      doneBtn.style.display = 'inline-block';
-      // optional popup effect
-      resultBox.style.transform = 'scale(1.2)';
-      setTimeout(()=>{ resultBox.style.transform='scale(1)'; }, 300);
+  // spin animation
+  function spin() {
+    if (spinning) return;
+    spinning = true;
+    spinBtn.disabled = true;
+    resultBox.textContent = 'Spinning...';
+
+    spinVelocity = (Math.random() * 0.5 + 0.6); // initial angular velocity
+    const deceleration = 0.9935;
+
+    function step() {
+      spinVelocity *= deceleration;
+      angle += spinVelocity;
+      animateWheel();
+      if (spinVelocity > 0.003) {
+        requestAnimationFrame(step);
+      } else {
+        spinning = false;
+        // keep spinBtn disabled until result resolved
+        showResult();
+      }
     }
+    requestAnimationFrame(step);
+  }
 
-    spinBtn.addEventListener('click', spin);
-  </script>
+  // show modal and start countdown
+  function showResult() {
+    const idx = getSelectedIndexFromAngle(angle);
+    selectedChallenge = segments[idx];
+    resultBox.textContent = `🎯 Your challenge: ${selectedChallenge}`;
+
+    // show modal
+    challengeTitle.textContent = `🎯 ${selectedChallenge}`;
+    challengeModal.style.display = 'flex';
+    challengeModal.setAttribute('aria-hidden', 'false');
+
+    // start timer
+    let timeLeft = 30;
+    timerDisplay.textContent = `⏳ ${timeLeft}`;
+
+    timerId = setInterval(() => {
+      timeLeft--;
+      timerDisplay.textContent = `⏳ ${timeLeft}`;
+      if (timeLeft <= 0) {
+        clearInterval(timerId);
+        timerId = null;
+        failChallenge(selectedChallenge);
+      }
+    }, 1000);
+  }
+
+  function closeChallengeModal() {
+    challengeModal.style.display = 'none';
+    challengeModal.setAttribute('aria-hidden', 'true');
+  }
+
+  // result popup (no blocking alert)
+  function showResultPopup(title, message, success = false) {
+    resultTitle.textContent = title;
+    resultMessage.textContent = message;
+    resultModal.style.display = 'flex';
+    resultModal.setAttribute('aria-hidden', 'false');
+    // keep spin disabled until user closes popup
+    spinBtn.disabled = true;
+  }
+
+  function closeResultPopup() {
+    resultModal.style.display = 'none';
+    resultModal.setAttribute('aria-hidden', 'true');
+    spinBtn.disabled = false;
+    resultBox.textContent = 'Click SPIN to get your exercise';
+    animateWheel();
+  }
+
+  function updateScoreDisplay() {
+    scoreBox.textContent = `Points: ${points}`;
+  }
+
+  // user completed challenge
+  function completeChallenge(challenge) {
+    if (timerId) { clearInterval(timerId); timerId = null; }
+    closeChallengeModal();
+
+    const earned = 10;
+    points += earned;
+    updateScoreDisplay();
+
+    const title = '✅ Completed';
+    const message = `You completed "${challenge}" — +${earned} points.`;
+    showResultPopup(title, message, true);
+
+    // async save to backend
+    fetch('/save_challenge', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ challenge: challenge, status: 'completed', points: earned })
+    }).then(r => r.json()).catch(err=>{
+      // if server fails, keep the UI friendly
+      resultMessage.textContent = message + ' (server save failed)';
+      console.error('save_challenge error', err);
+    });
+  }
+
+  // user failed (manual or timeout)
+  function failChallenge(challenge) {
+    if (timerId) { clearInterval(timerId); timerId = null; }
+    closeChallengeModal();
+    const title = '❌ Failed';
+    const message = `Time's up — you failed "${challenge}". Try again!`;
+    showResultPopup(title, message, false);
+
+    fetch('/save_challenge', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ challenge: challenge, status: 'failed', points: 0 })
+    }).then(r => r.json()).catch(err=>{
+      console.error('save_challenge error', err);
+    });
+  }
+
+  // events
+  spinBtn.addEventListener('click', () => { if (!spinning) spin(); });
+  completeBtn.addEventListener('click', () => { completeChallenge(selectedChallenge); });
+  failBtn.addEventListener('click', () => { failChallenge(selectedChallenge); });
+  closeResult.addEventListener('click', () => { closeResultPopup(); });
+
+  // clicking outside modals: we disable closing challenge modal to avoid bypassing timer
+  resultModal.addEventListener('click', (e) => { if (e.target === resultModal) closeResultPopup(); });
+
+  // initial draw
+  animateWheel();
+  updateScoreDisplay();
+  window.addEventListener('resize', () => { animateWheel(); });
+</script>
 </body>
 </html>

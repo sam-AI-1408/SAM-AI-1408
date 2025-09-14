@@ -32,10 +32,7 @@
     .header-row { display:flex; justify-content:space-between; align-items:center; gap:12px; flex-wrap:wrap; }
     h1 { margin:0; color:var(--accent); font-size:22px; }
     .points-badge { background:var(--card); padding:8px 12px; border-radius:12px; font-weight:700; color:var(--accent); }
-    #startFinancialCourse:hover {
-  transform: scale(1.05);
-  filter: brightness(1.1);
-}
+    #startFinancialCourse:hover { transform: scale(1.05); filter: brightness(1.1); }
 
     /* Tabs */
     .quest-tabs { display:flex; gap:12px; margin-top:12px; }
@@ -58,45 +55,20 @@
     .btn { padding:8px 12px; border-radius:10px; border:none; background:var(--accent); color:#001; cursor:pointer; font-weight:700; }
 
     /* Modal */
-    .overlay {
-      position: fixed; inset:0; display:none; background: rgba(0,0,0,0.7); z-index:1200; justify-content:center; align-items:center;
-    }
+    .overlay { position: fixed; inset:0; display:none; background: rgba(0,0,0,0.7); z-index:1200; justify-content:center; align-items:center; }
     .overlay.show { display:flex; }
-    .modal {
-      width: 480px; max-width:calc(100%-40px); background: var(--panel); border-radius:12px; padding:18px;
-      box-shadow:0 0 40px rgba(0,0,0,0.7); border:1px solid rgba(0,208,255,0.06);
-    }
+    .modal { width: 480px; max-width:calc(100%-40px); background: var(--panel); border-radius:12px; padding:18px; box-shadow:0 0 40px rgba(0,0,0,0.7); border:1px solid rgba(0,208,255,0.06); }
     .modal h4 { margin:0; color:var(--accent); }
     .modal .controls { margin-top:12px; display:flex; gap:10px; justify-content:center; }
     .modal iframe { margin-top:12px; width:100%; height:250px; border-radius:8px; border:none; }
     .small { font-size:13px; color:var(--muted); text-align:center; margin-top:8px; }
 
     @media (max-width:900px) { .sidebar { display:none; } }
+
     /* Dice Button Styling */
-#playDiceBtn {
-  padding: 10px 16px;
-  font-size: 16px;
-  font-weight: 700;
-  border: none;
-  border-radius: 12px;
-  background: linear-gradient(135deg, #ffd24d, #ff8f00);
-  color: #001;
-  cursor: pointer;
-  box-shadow: 0 4px 8px rgba(0,0,0,0.3);
-  transition: transform 0.2s ease, box-shadow 0.2s ease, filter 0.2s ease;
-}
-
-#playDiceBtn:hover {
-  transform: scale(1.08);
-  box-shadow: 0 8px 16px rgba(0,0,0,0.4);
-  filter: brightness(1.1);
-}
-
-#playDiceBtn:active {
-  transform: scale(0.98);
-  box-shadow: 0 3px 6px rgba(0,0,0,0.2);
-}
-
+    #playDiceBtn { padding: 10px 16px; font-size: 16px; font-weight: 700; border: none; border-radius: 12px; background: linear-gradient(135deg, #ffd24d, #ff8f00); color: #001; cursor: pointer; box-shadow: 0 4px 8px rgba(0,0,0,0.3); transition: transform 0.2s ease, box-shadow 0.2s ease, filter 0.2s ease; }
+    #playDiceBtn:hover { transform: scale(1.08); box-shadow: 0 8px 16px rgba(0,0,0,0.4); filter: brightness(1.1); }
+    #playDiceBtn:active { transform: scale(0.98); box-shadow: 0 3px 6px rgba(0,0,0,0.2); }
   </style>
 </head>
 <body>
@@ -126,10 +98,9 @@
       <h1>Quests</h1>
       <div class="top-controls">
         <div class="points-badge">XP: <span id="points-display">{{ user.points or 0 }}</span></div>
-      <a href="{{ url_for('dice') }}">
-  <button type="button" id="playDiceBtn">🎲 Play Dice</button>
-</a>
-
+        <a href="{{ url_for('dice') }}">
+          <button type="button" id="playDiceBtn">🎲 Play Dice</button>
+        </a>
         <button class="btn" id="startFinancialCourse">📚 Financial Education</button>
       </div>
     </div>
@@ -144,17 +115,16 @@
     <!-- Quest Board -->
     <div class="quests-board" id="questsBoard">
       {% for quest in quests %}
-      <div class="quest-card {% if quest['completed'] %}completed{% endif %}" id="quest-{{ quest['id'] }}">
-        <h3>{{ quest['title'] }}</h3>
-        <p>Category: {{ quest['category'] }} | XP: {{ quest['xp'] }} | Type: {{ quest['type'] }}</p>
-        <div class="quest-controls">
-          <button class="complete-quest-btn" data-quest-id="{{ quest['id'] }}" {% if quest['completed'] %}disabled{% endif %}>
-            {% if quest['completed'] %}Completed{% else %}Complete{% endif %}
-          </button>
-        </div>
-      </div>
-      {% endfor %}
-    </div>
+<div class="quest-card {% if quest['completed'] %}completed{% endif %}" id="quest-{{ quest['id'] }}">
+  <h3>{{ quest['title'] }}</h3>
+  <p>Category: {{ quest['category'] }} | XP: {{ quest['xp'] }} | Type: {{ quest['type'] }}</p>
+  <div class="quest-controls">
+    <button class="complete-quest-btn" data-quest-id="{{ quest['id'] }}" {% if quest['completed'] %}disabled{% endif %}>
+      {% if quest['completed'] %}Completed{% else %}Complete{% endif %}
+    </button>
+  </div>
+</div>
+{% endfor %}
 
   </div>
 
@@ -175,7 +145,6 @@
     </div>
   </div>
 
-  <!-- Click Sound -->
   <audio id="clickSound" src="/static/click.mp3" preload="auto"></audio>
 
   <script>
@@ -187,6 +156,7 @@
       }
     });
 
+    // Financial Lessons
     const financialLessons = [
       { text: "Lesson 1 — Basics of Money", video: "https://www.youtube.com/embed/ouvbeb2wSGA" },
       { text: "Lesson 2 — Budgeting & Saving", video: "https://www.youtube.com/embed/4XZIv4__sQA" },
@@ -219,25 +189,56 @@
         showLesson();
       } else {
         alert("🎉 You have completed the Financial Education course!");
-        modal.classList.remove('show');
+        closeModal();
       }
     };
 
     document.getElementById('prevLesson').onclick = () => {
-      if (currentLesson > 0) {
-        currentLesson--;
-        showLesson();
-      }
+      if (currentLesson > 0) { currentLesson--; showLesson(); }
     };
 
-    document.getElementById('exitCourse').onclick = () => modal.classList.remove('show');
+    document.getElementById('exitCourse').onclick = closeModal;
 
     function showLesson() {
       lessonContent.textContent = financialLessons[currentLesson].text;
       lessonVideo.src = financialLessons[currentLesson].video;
       lessonNumber.textContent = currentLesson + 1;
     }
-  </script>
 
+    function closeModal() {
+      lessonVideo.src = "";
+      modal.classList.remove('show');
+    }
+
+    // Quest Tabs Filter
+    const tabs = document.querySelectorAll(".quest-tabs button");
+    const questCards = document.querySelectorAll(".quest-card");
+    tabs.forEach(tab => {
+      tab.addEventListener("click", () => {
+        tabs.forEach(t => t.classList.remove("active"));
+        tab.classList.add("active");
+        const type = tab.dataset.type;
+        questCards.forEach(card => {
+          card.style.display = (card.dataset.type === type) ? "flex" : "none";
+        });
+      });
+    });
+
+    // Complete Quest Buttons
+    const pointsDisplay = document.getElementById("points-display");
+    document.querySelectorAll(".complete-quest-btn").forEach(btn => {
+      btn.addEventListener("click", () => {
+        const questCard = btn.closest(".quest-card");
+        const xp = parseInt(questCard.querySelector("p").textContent.match(/XP: (\d+)/)[1]);
+        questCard.classList.add("completed");
+        btn.textContent = "Completed";
+        btn.disabled = true;
+        // Update XP
+        pointsDisplay.textContent = parseInt(pointsDisplay.textContent) + xp;
+        // Optional: send POST to backend to save completion
+      });
+    });
+
+  </script>
 </body>
 </html>

@@ -130,6 +130,23 @@
       .sidebar { display:none; }
     }
   </style>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<style>
+  .xp-bar-container {
+    margin-top: 12px;
+    background: var(--card);
+    border-radius: 12px;
+    overflow: hidden;
+    height: 18px;
+  }
+  .xp-bar {
+    height: 100%;
+    width: 0%;
+    background: linear-gradient(90deg, #00d0ff, #2ad19f);
+    transition: width 0.5s ease;
+  }
+</style>
+
 </head>
 <body>
   <div class="sidebar">
@@ -183,7 +200,15 @@
                      <a href="{{ url_for('shufflecard') }}"></a>
   <button class="btn" id="openShuffleCard">🎴 Shuffle Cards</button>
 </div>
+<h3 style="margin-top:20px;">Progress</h3>
+<div class="xp-bar-container">
+  <div id="xpBar" class="xp-bar"></div>
+</div>
 
+<canvas id="studyChart" style="margin-top:16px;max-height:240px;"></canvas>
+
+<h4 style="margin-top:12px;color:var(--accent);font-size:14px;">By Subject</h4>
+<canvas id="subjectChart" style="margin-top:8px; max-height:220px;"></canvas>
         <div style="margin-top:12px;">
           <div class="small">Active scheduled sessions:</div>
           <ul id="scheduledOverview" style="margin:8px 0 0 0; padding:0; list-style:none;"></ul>
@@ -239,6 +264,32 @@
       </div>
     </div>
   </div>
+   <!-- Step 3: Notes (update to include Subject) -->
+<div class="overlay" id="stepNotes">
+  <div class="modal">
+    <h4>Step 3 — What did you study?</h4>
+    <div class="small">Choose subject, then write notes or topics you will cover (shown after completion).</div>
+
+    <!-- SUBJECT SELECT -->
+    <label style="display:block;margin-top:10px;color:var(--muted);font-size:13px;">Subject</label>
+    <select id="inputSubject" style="margin-top:6px;">
+      <option value="General">General</option>
+      <option value="Math">Math</option>
+      <option value="Physics">Physics</option>
+      <option value="Chemistry">Chemistry</option>
+      <option value="CS">Computer Science</option>
+      <option value="Language">Language</option>
+      <option value="Fitness">Fitness</option>
+      <option value="Other">Other</option>
+    </select>
+
+    <textarea id="inputNotes" placeholder="What will you study?"></textarea>
+    <div class="controls">
+      <button class="btn cancel" id="notesBack">Back</button>
+      <button class="btn" id="startSession">Start Session</button>
+    </div>
+  </div>
+</div>
 
   <!-- Timer Modal -->
   <div class="overlay" id="timerModal">
@@ -290,224 +341,315 @@
 "></p>
 
 
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 <script>
+/* ================== GLOBAL STATE ================== */
 const clickSound = document.getElementById("clickSound");
+const alarmSound = document.getElementById("alarmSound");
+let studyChart = null;      // weekly line/bar chart
+let subjectChart = null;    // pie chart for subject distribution
 
-document.querySelectorAll("button").forEach(btn => {
-  btn.addEventListener("click", () => {
-    clickSound.currentTime = 0; // restart if already playing
-    clickSound.play();
-  });
-});
+const addBtn = document.getElementById("openAdd");
+const pointsEl = document.getElementById("points");
+const completedList = document.getElementById("completedList");
+const scheduledOverview = document.getElementById("scheduledOverview");
 
-document.getElementById('openShuffleCard').onclick = () => {
-  window.location.href = '/shufflecard'; // or correct URL path
+let state = {
+  hours: 0,
+  minutes: 0,
+  startAt: null,
+  notes: "",
+  subject: "General",
+  timerInterval: null,
+  countdownRemainingMs: 0,
+  scheduledTimeoutId: null,
+  activeSessionId: null
 };
 
-</script>
-
-<script>
-  // ---------- config ----------
-  const addBtn = document.getElementById('openAdd');
-  const pointsEl = document.getElementById('points');
-  const completedList = document.getElementById('completedList');
-  const scheduledOverview = document.getElementById('scheduledOverview');
-
-  // State for session in progress
-  let state = {
-    hours: 0,
-    minutes: 0,
-    startAt: null,
-    notes: '',
-    subject: '{{ user.username or "" }} study',
-    timerInterval: null,
-    countdownRemainingMs: 0,
-    scheduledTimeoutId: null,
-    activeSessionId: null
-  };
-
-  // ---------- UI helpers ----------
-  function showOverlay(id) { document.getElementById(id).classList.add('show'); }
-  function hideOverlay(id) { document.getElementById(id).classList.remove('show'); }
-
-  // ---------- Open flow ----------
-  addBtn.addEventListener('click', () => {
-    state.hours = 0; state.minutes = 30; state.startAt = null; state.notes = '';
-    document.getElementById('inputHours').value = '';
-    document.getElementById('inputMinutes').value = '';
-    const now = new Date();
-    const localISO = new Date(now.getTime() - now.getTimezoneOffset()*60000).toISOString().slice(0,16);
-    document.getElementById('inputStartAt').value = localISO;
-    document.getElementById('inputNotes').value = '';
-    showOverlay('stepDuration');
+/* ================== SOUND & BUTTONS ================== */
+document.querySelectorAll("button").forEach(btn => {
+  btn.addEventListener("click", () => {
+    if (clickSound) { clickSound.currentTime = 0; clickSound.play().catch(()=>{}); }
   });
+});
+const shuffleBtn = document.getElementById("openShuffleCard");
+if (shuffleBtn) shuffleBtn.onclick = () => { window.location.href = "/shufflecard"; };
 
-  // Step 1 controls
-  document.getElementById('durCancel').onclick = () => hideOverlay('stepDuration');
-  document.getElementById('durNext').onclick = () => {
-    const h = parseInt(document.getElementById('inputHours').value || 0);
-    const m = parseInt(document.getElementById('inputMinutes').value || 0);
-    if (h === 0 && m === 0) { alert('Set duration (hours or minutes).'); return; }
-    state.hours = Math.max(0,h); state.minutes = Math.max(0,m);
-    hideOverlay('stepDuration'); showOverlay('stepSchedule');
-  };
+/* ================== UI HELPERS ================== */
+function showOverlay(id){ const el=document.getElementById(id); if(el) el.classList.add("show"); }
+function hideOverlay(id){ const el=document.getElementById(id); if(el) el.classList.remove("show"); }
 
-  // Step 2 controls
-  document.getElementById('schBack').onclick = () => { hideOverlay('stepSchedule'); showOverlay('stepDuration'); };
-  document.getElementById('schNext').onclick = () => {
-    const val = document.getElementById('inputStartAt').value;
-    state.startAt = val ? new Date(val) : new Date();
-    hideOverlay('stepSchedule'); showOverlay('stepNotes');
-  };
+/* ================== OPEN FLOW ================== */
+addBtn.addEventListener("click", () => {
+  state.hours = 0; state.minutes = 30; state.startAt = null; state.notes = ""; state.subject = "General";
+  document.getElementById("inputHours").value = "";
+  document.getElementById("inputMinutes").value = "";
+  const now = new Date();
+  const localISO = new Date(now.getTime() - now.getTimezoneOffset()*60000).toISOString().slice(0,16);
+  document.getElementById("inputStartAt").value = localISO;
+  document.getElementById("inputNotes").value = "";
+  document.getElementById("inputSubject").value = "General";
+  showOverlay("stepDuration");
+});
 
-  // Step 3 controls
-  document.getElementById('notesBack').onclick = () => { hideOverlay('stepNotes'); showOverlay('stepSchedule'); };
-  document.getElementById('startSession').onclick = () => {
-    state.notes = document.getElementById('inputNotes').value || '';
-    hideOverlay('stepNotes');
-    scheduleOrStartSession();
-  };
+/* ---------- Step 1 controls ---------- */
+document.getElementById("durCancel").onclick = () => hideOverlay("stepDuration");
+document.getElementById("durNext").onclick = () => {
+  const h = parseInt(document.getElementById("inputHours").value||0);
+  const m = parseInt(document.getElementById("inputMinutes").value||0);
+  if (h===0 && m===0){ alert("Set duration (hours or minutes)."); return; }
+  state.hours = Math.max(0,h); state.minutes = Math.max(0,m);
+  hideOverlay("stepDuration"); showOverlay("stepSchedule");
+};
 
-  // ---------- scheduling & timer ----------
-  function scheduleOrStartSession() {
-    const durationMs = ((state.hours * 60) + state.minutes) * 60 * 1000;
-    if (!state.startAt) state.startAt = new Date();
-    const now = new Date();
+/* ---------- Step 2 controls ---------- */
+document.getElementById("schBack").onclick = () => { hideOverlay("stepSchedule"); showOverlay("stepDuration"); };
+document.getElementById("schNext").onclick = () => {
+  const val = document.getElementById("inputStartAt").value;
+  state.startAt = val ? new Date(val) : new Date();
+  hideOverlay("stepSchedule"); showOverlay("stepNotes");
+};
 
-    if (state.startAt.getTime() > now.getTime()) {
-      const waitMs = state.startAt.getTime() - now.getTime();
-      const li = document.createElement('li');
-      li.textContent = `${state.startAt.toLocaleString()} • ${state.hours}h ${state.minutes}m`;
-      scheduledOverview.appendChild(li);
+/* ---------- Step 3 controls (subject handled) ---------- */
+document.getElementById("notesBack").onclick = () => { hideOverlay("stepNotes"); showOverlay("stepSchedule"); };
+document.getElementById("startSession").onclick = () => {
+  state.notes = document.getElementById("inputNotes").value || "";
+  state.subject = document.getElementById("inputSubject").value || "General";
+  hideOverlay("stepNotes");
+  scheduleOrStartSession();
+};
 
-      state.scheduledTimeoutId = setTimeout(() => {
-        if (li.parentNode) li.parentNode.removeChild(li);
-        startCountdown(durationMs);
-      }, waitMs);
+/* ================== SCHEDULING & TIMER ================== */
+function scheduleOrStartSession() {
+  const durationMs = ((state.hours*60) + state.minutes) * 60 * 1000;
+  if (!state.startAt) state.startAt = new Date();
+  const now = new Date();
 
-      alert('Session scheduled. It will start at the selected time (tab must be open).');
-    } else {
+  if (state.startAt.getTime() > now.getTime()) {
+    const waitMs = state.startAt.getTime() - now.getTime();
+    const li = document.createElement("li");
+    li.textContent = `${state.startAt.toLocaleString()} • ${state.hours}h ${state.minutes}m (${state.subject})`;
+    scheduledOverview.appendChild(li);
+
+    state.scheduledTimeoutId = setTimeout(() => {
+      if (li.parentNode) li.parentNode.removeChild(li);
       startCountdown(durationMs);
+    }, waitMs);
+
+    alert("Session scheduled. It will start at the selected time (tab must be open).");
+  } else {
+    startCountdown(durationMs);
+  }
+}
+
+function startCountdown(durationMs) {
+  state.countdownRemainingMs = durationMs;
+  document.getElementById("timerSessionMeta").textContent = `${state.hours} h ${state.minutes} m — ${state.subject} — Notes: ${state.notes || "—"}`;
+  showOverlay("timerModal");
+  updateTimerDisplay();
+
+  state.timerInterval = setInterval(() => {
+    state.countdownRemainingMs -= 1000;
+    if (state.countdownRemainingMs <= 0) {
+      clearInterval(state.timerInterval);
+      state.timerInterval = null;
+      hideOverlay("timerModal");
+      onTimerEnded();
+    } else {
+      updateTimerDisplay();
     }
+  }, 1000);
+}
+
+function updateTimerDisplay(){
+  const ms = Math.max(0, state.countdownRemainingMs);
+  const totalSec = Math.floor(ms/1000);
+  const h = Math.floor(totalSec / 3600);
+  const m = Math.floor((totalSec % 3600) / 60);
+  const s = totalSec % 60;
+  document.getElementById("timerDisplay").textContent = `${String(h).padStart(2,"0")}:${String(m).padStart(2,"0")}:${String(s).padStart(2,"0")}`;
+}
+
+document.getElementById("cancelTimer").onclick = () => {
+  if (state.timerInterval) clearInterval(state.timerInterval);
+  if (state.scheduledTimeoutId) clearTimeout(state.scheduledTimeoutId);
+  state.timerInterval = state.scheduledTimeoutId = null;
+  hideOverlay("timerModal");
+  alert("Session canceled.");
+};
+
+/* ================== WHEN COUNTDOWN ENDS ================== */
+function onTimerEnded(){
+  if (alarmSound){ alarmSound.currentTime = 0; alarmSound.play().catch(()=>{}); }
+  if ("Notification" in window && Notification.permission !== "granted") Notification.requestPermission().catch(()=>{});
+  if ("Notification" in window && Notification.permission === "granted") {
+    new Notification("Session finished", { body: `Session: ${state.hours}h ${state.minutes}m — ${state.subject}` });
   }
+  document.getElementById("completionMeta").textContent = `Session length: ${state.hours}h ${state.minutes}m — ${state.subject} — Notes: ${state.notes || "—"}`;
+  showOverlay("completionModal");
+}
 
-  function startCountdown(durationMs) {
-    state.countdownRemainingMs = durationMs;
-    document.getElementById('timerSessionMeta').textContent = `${state.hours} h ${state.minutes} m — Notes: ${state.notes || '—'}`;
-    showOverlay('timerModal');
-    updateTimerDisplay();
+/* ================== COMPLETION HANDLERS ================== */
+document.getElementById("markNo").onclick = () => {
+  hideOverlay("completionModal");
+  alert("Session discarded (no points awarded).");
+};
 
-    state.timerInterval = setInterval(() => {
-      state.countdownRemainingMs -= 1000;
-      if (state.countdownRemainingMs <= 0) {
-        clearInterval(state.timerInterval);
-        state.timerInterval = null;
-        hideOverlay('timerModal');
-        onTimerEnded();
-      } else {
-        updateTimerDisplay();
-      }
-    }, 1000);
-  }
+document.getElementById("markYes").onclick = async () => {
+  const durationMinutes = (state.hours * 60) + state.minutes;
+  const form = new FormData();
+  form.append("subject", state.subject || "General");
+  form.append("duration", durationMinutes);
+  form.append("notes", state.notes || "");
+  form.append("started_at", (state.startAt || new Date()).toISOString());
+  form.append("ended_at", new Date().toISOString());
 
-  function updateTimerDisplay() {
-    const ms = Math.max(0, state.countdownRemainingMs);
-    const totalSec = Math.floor(ms / 1000);
-    const h = Math.floor(totalSec / 3600);
-    const m = Math.floor((totalSec % 3600) / 60);
-    const s = totalSec % 60;
-    document.getElementById('timerDisplay').textContent = `${String(h).padStart(2,'0')}:${String(m).padStart(2,'0')}:${String(s).padStart(2,'0')}`;
-  }
-
-  document.getElementById('cancelTimer').onclick = () => {
-    if (state.timerInterval) clearInterval(state.timerInterval);
-    if (state.scheduledTimeoutId) clearTimeout(state.scheduledTimeoutId);
-    state.timerInterval = state.scheduledTimeoutId = null;
-    hideOverlay('timerModal');
-    alert('Session canceled.');
-  };
-
-  // ---------- when countdown finishes ----------
-  function onTimerEnded() {
-    const audio = document.getElementById('alarmSound');
-    audio.currentTime = 0;
-    audio.play().catch(()=>{});
-    if ('Notification' in window && Notification.permission !== 'granted') Notification.requestPermission();
-    if ('Notification' in window && Notification.permission === 'granted') {
-      new Notification('Session finished', { body: `Session: ${state.hours}h ${state.minutes}m` });
-    }
-    document.getElementById('completionMeta').textContent = `Session length: ${state.hours}h ${state.minutes}m — Notes: ${state.notes || '—'}`;
-    showOverlay('completionModal');
-  }
-
-  // completion modal buttons
-  document.getElementById('markNo').onclick = () => { hideOverlay('completionModal'); alert('Session discarded (no points awarded).'); };
-
-  document.getElementById('markYes').onclick = async () => {
-    const durationMinutes = (state.hours * 60) + state.minutes;
-    const form = new FormData();
-    form.append('subject', 'Study Session');
-    form.append('duration', durationMinutes);
-    form.append('notes', state.notes || '');
-    form.append('started_at', (state.startAt || new Date()).toISOString());
-    form.append('ended_at', new Date().toISOString());
-
-    try {
-      await fetch('/add_study_log', { method: 'POST', body: form }).then(r => r.json());
-      await loadCompletedSessions();
-      await loadPoints(); // <-- update points dynamically
-      hideOverlay('completionModal');
-      alert('Session saved and points awarded!');
-    } catch (err) {
-      console.error(err);
-      hideOverlay('completionModal');
-      alert('Failed to save session — check server logs.');
-    }
-  };
-
-  // ---------- load completed sessions ----------
-  async function loadCompletedSessions() {
-    try {
-      const res = await fetch('/get_study_logs');
-      const logs = await res.json();
-      completedList.innerHTML = '';
-      logs.forEach(l => {
-        const el = document.createElement('div');
-        el.className = 'session-item';
-        const mins = Number(l.duration || 0);
-        el.innerHTML = `<div>
-                          <div style="color:var(--accent)"><strong>${l.subject || 'Study'}</strong> — ${Math.round(mins/60*100)/100}h</div>
-                          <div class="meta">${l.notes ? l.notes : ''} • ${l.created_at || ''}</div>
-                        </div>
-                        <div style="color:#7df9ff">✔</div>`;
-        completedList.appendChild(el);
-      });
-    } catch(e) {
-      console.error('Could not load logs', e);
-    }
-  }
-
-  // ---------- load points from backend ----------
-  async function loadPoints() {
-    try {
-      const res = await fetch('/get_user_points');
-      const data = await res.json(); // expects {points: 123}
-      pointsEl.textContent = data.points || 0;
-    } catch(e) {
-      console.error('Could not load points', e);
-    }
-  }
-
-  // ---------- init ----------
-  (async function init() {
+  try {
+    const res = await fetch("/add_study_log", { method: "POST", body: form });
     await loadCompletedSessions();
     await loadPoints();
-    if ('Notification' in window && Notification.permission !== 'granted') {
-      Notification.requestPermission().catch(()=>{});
+    await loadStudyChart();    // refresh both charts
+    hideOverlay("completionModal");
+    alert("Session saved and points awarded!");
+  } catch (err) {
+    console.error(err);
+    hideOverlay("completionModal");
+    alert("Failed to save session — check server logs.");
+  }
+};
+
+/* ================== LOAD/RENDER DATA ================== */
+async function loadCompletedSessions(){
+  try {
+    const res = await fetch("/get_study_logs");
+    const logs = await res.json();
+    completedList.innerHTML = "";
+    logs.forEach(l => {
+      const el = document.createElement("div");
+      el.className = "session-item";
+      const mins = Number(l.duration || 0);
+      const subject = l.subject || "General";
+      const created = l.created_at || l.started_at || "";
+      el.innerHTML = `
+        <div>
+          <div style="color:var(--accent)"><strong>${subject}</strong> — ${Math.round(mins/60*100)/100}h</div>
+          <div class="meta">${l.notes ? l.notes : ""} • ${created}</div>
+        </div>
+        <div style="color:#7df9ff">✔</div>`;
+      completedList.appendChild(el);
+    });
+  } catch(e) {
+    console.error("Could not load logs", e);
+  }
+}
+
+async function loadPoints(){
+  try {
+    const res = await fetch("/get_user_points");
+    const data = await res.json();
+    pointsEl.textContent = data.points || 0;
+  } catch(e){ console.error("Could not load points", e); }
+}
+
+/* ================== CHARTS (WEEKLY + SUBJECT PIE) ================== */
+async function loadStudyChart(){
+  try {
+    const res = await fetch("/get_study_logs");
+    const logs = await res.json();
+
+    // Weekly totals by weekday (Mon-Sun)
+    const days = ["Mon","Tue","Wed","Thu","Fri","Sat","Sun"];
+    const dayTotals = [0,0,0,0,0,0,0];
+
+    // Subject totals
+    const subjectTotals = {}; // {subject: hours}
+
+    logs.forEach(l => {
+      const d = new Date(l.created_at || l.started_at || new Date());
+      const weekday = d.getDay(); // 0=Sun ... 6=Sat
+      const hours = Number(l.duration || 0) / 60;
+      const idx = weekday === 0 ? 6 : weekday-1;
+      dayTotals[idx] += hours;
+
+      const subj = (l.subject || "General");
+      subjectTotals[subj] = (subjectTotals[subj] || 0) + hours;
+    });
+
+    // --- Weekly chart (line or bar) ---
+    const ctx = document.getElementById("studyChart").getContext("2d");
+    if (studyChart) studyChart.destroy();
+    studyChart = new Chart(ctx, {
+      type: "bar",
+      data: {
+        labels: days,
+        datasets: [{
+          label: "Hours studied",
+          data: dayTotals.map(h => Number(h.toFixed(2))),
+          backgroundColor: "rgba(0,208,255,0.55)",
+          borderColor: "#00d0ff",
+          borderWidth: 1,
+          borderRadius: 6
+        }]
+      },
+      options: {
+        scales: { y: { beginAtZero: true, ticks: { color: "#9fb2c4" } }, x: { ticks: { color: "#9fb2c4" } } },
+        plugins: { legend: { labels: { color: "#9fb2c4" } } }
+      }
+    });
+
+    // --- Subject distribution pie chart ---
+    const subjectLabels = Object.keys(subjectTotals);
+    const subjectData = subjectLabels.map(k => Number(subjectTotals[k].toFixed(2)));
+
+    const ctx2 = document.getElementById("subjectChart");
+    if (ctx2) {
+      const ctx2c = ctx2.getContext("2d");
+      if (subjectChart) subjectChart.destroy();
+      subjectChart = new Chart(ctx2c, {
+        type: "pie",
+        data: {
+          labels: subjectLabels,
+          datasets: [{
+            data: subjectData,
+            backgroundColor: [
+              "#00d0ff","#2ad19f","#ffd24d","#ff6b87","#7d5fff","#00ffa0","#ff9f00"
+            ].slice(0, subjectLabels.length),
+            borderColor: "#0a1224",
+            borderWidth: 1
+          }]
+        },
+        options: {
+          plugins: {
+            legend: { labels: { color: "#9fb2c4" } },
+            tooltip: {
+              callbacks: {
+                label: function(ctx){
+                  const val = ctx.parsed;
+                  return `${ctx.label}: ${val} h`;
+                }
+              }
+            }
+          }
+        }
+      });
     }
-  })();
+
+  } catch(err) {
+    console.error("Could not load chart", err);
+  }
+}
+
+/* ================== INIT ================== */
+(async function init(){
+  await loadCompletedSessions();
+  await loadPoints();
+  await loadStudyChart();
+  if ("Notification" in window && Notification.permission !== "granted") {
+    Notification.requestPermission().catch(()=>{});
+  }
+})();
 </script>
-<script src="{{ url_for('static', filename='js/voice_assistant.js') }}"></script>
+
 
 </body>
 </html>

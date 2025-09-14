@@ -43,20 +43,12 @@
     .modal{background:var(--panel);padding:18px;border-radius:12px;width:420px;max-width:95%}
     .modal h3{margin-top:0}
     .muted{color:var(--muted)}
-
     /* Fitness Course Modal overlay */
-    .overlay {
-      display: none;
-      position: fixed;
-      inset: 0;
-      background: rgba(0,0,0,0.6);
-      align-items: center;
-      justify-content: center;
-      z-index: 2000;
-    }
-    .overlay.show {
-      display: flex;
-    }
+    .overlay { display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.6); align-items: center; justify-content: center; z-index: 2000; }
+    .overlay.show { display: flex; }
+    /* small glow hover */
+    .btn:hover{ box-shadow: 0 0 12px rgba(0,208,255,0.14); transform: translateY(-2px); transition: .12s; }
+    .task-item.overdue{ box-shadow: 0 0 0 2px rgba(255,107,135,0.06); }
   </style>
 </head>
 <body>
@@ -102,32 +94,29 @@
         </form>
 
         <h3 style="margin-top:18px;">Your tasks</h3>
-        <div class="tasks-list" id="tasksList">
-          {% for t in tasks %}
-          <div class="task-item" data-id="{{ t.id }}">
-            <div>
-              <div class="task-title">{{ t.title }}</div>
-              <div class="task-meta">
-                {% if t.alarm_time %} {{ t.alarm_time.strftime('%Y-%m-%d %H:%M') }} • {% endif %}
-                {{ 'Completed' if t.completed else 'Pending' }}
-              </div>
-            </div>
-            <div class="task-actions">
-              {% if not t.completed %}
-                <button class="btn btn-complete" data-id="{{ t.id }}">Complete</button>
-              {% else %}
-                <span class="small" style="color:#2ad19f">✔ Completed</span>
-              {% endif %}
-              <button class="btn btn-edit" data-id="{{ t.id }}" data-title="{{ t.title }}" data-time="{{ t.alarm_time.strftime('%Y-%m-%dT%H:%M') if t.alarm_time else '' }}">Modify</button>
-              <form method="POST" action="{{ url_for('delete_task', task_id=t.id) }}" style="display:inline;">
-                <button class="btn btn-delete" type="submit">Delete</button>
-              </form>
-            </div>
-          </div>
-          {% else %}
-            <div class="small muted" style="padding:12px">No tasks yet — add your first task above.</div>
-          {% endfor %}
+
+        <!-- Filters + Search -->
+        <div style="display:flex;gap:8px;align-items:center;margin-bottom:10px;">
+          <select id="filterSelect" class="btn" style="background:var(--card);color:var(--accent);">
+            <option value="all">All</option>
+            <option value="pending">Pending</option>
+            <option value="completed">Completed</option>
+            <option value="today">Today</option>
+          </select>
+          <input type="text" id="searchInput" placeholder="Search tasks..." style="flex:1">
+          <button id="clearFilters" class="btn" title="Reset filters" type="button">Reset</button>
         </div>
+
+        <!-- Progress bar -->
+        <div style="margin:12px 0;">
+          <div style="height:10px;background:#111;border-radius:6px;overflow:hidden;">
+            <div id="progressBar" style="height:100%;width:0%;background:var(--accent);transition:width 0.3s ease;"></div>
+          </div>
+          <div class="small muted" id="progressText" style="margin-top:4px;">0 / 0 tasks completed</div>
+        </div>
+
+        <!-- Task list (rendered by JS) -->
+        <div class="tasks-list" id="tasksList"></div>
       </div>
 
       <div class="card">
@@ -138,12 +127,14 @@
           <div class="small">Completed: <strong id="completedCount">0</strong></div>
           <div style="height:12px"></div>
           <h4 style="margin:8px 0 6px 0;color:var(--accent)">Upcoming by date</h4>
+          <canvas id="tasksChart" style="margin-top:15px;max-height:240px;"></canvas>
+
           <div id="calendarList" class="small muted" style="max-height:360px;overflow:auto"></div>
         </div>
       </div>
     </div>
   </div>
-
+    
   <div id="taskLimitNotification" style="
     display:none;
     position:fixed;
@@ -193,8 +184,12 @@
       </div>
     </div>
   </div>
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 
 <script>
+  let tasksChart = null;
+
+/* ---------- Fitness lessons (kept as-is) ---------- */
 const fitnessLessons = [
   { text: "Lesson 1 — Calisthenics Basics", video: "https://www.youtube.com/embed/kuUZYUBHryw" },
   { text: "Lesson 2 — MMA Fighting Techniques", video: "https://www.youtube.com/embed/Q3mqj0S-ECY" },
@@ -202,26 +197,16 @@ const fitnessLessons = [
   { text: "Lesson 4 — Diet & Nutrition Tips", video: "https://www.youtube.com/embed/WfPqlTRFnLU" },
   { text: "Lesson 5 — Advanced Workouts & Combos", video: "https://www.youtube.com/embed/TgfxvCDDC4U" }
 ];
-
 let currentFitnessLesson = 0;
 const fitnessModal = document.getElementById('fitnessCourseModal');
 const fitnessLessonContent = document.getElementById('fitnessLessonContent');
 const fitnessLessonNumber = document.getElementById('fitnessLessonNumber');
 const fitnessTotalLessons = document.getElementById('fitnessTotalLessons');
 fitnessTotalLessons.textContent = fitnessLessons.length;
-
-document.getElementById('startFitnessCourse').onclick = () => {
-  currentFitnessLesson = 0;
-  showFitnessLesson();
-  fitnessModal.classList.add('show');
-};
+document.getElementById('startFitnessCourse').onclick = () => { currentFitnessLesson = 0; showFitnessLesson(); fitnessModal.classList.add('show'); };
 document.getElementById('exitFitnessCourse').onclick = () => fitnessModal.classList.remove('show');
-document.getElementById('nextFitnessLesson').onclick = () => {
-  if(currentFitnessLesson < fitnessLessons.length - 1) { currentFitnessLesson++; showFitnessLesson(); }
-};
-document.getElementById('prevFitnessLesson').onclick = () => {
-  if(currentFitnessLesson > 0) { currentFitnessLesson--; showFitnessLesson(); }
-};
+document.getElementById('nextFitnessLesson').onclick = () => { if(currentFitnessLesson < fitnessLessons.length - 1) { currentFitnessLesson++; showFitnessLesson(); } };
+document.getElementById('prevFitnessLesson').onclick = () => { if(currentFitnessLesson > 0) { currentFitnessLesson--; showFitnessLesson(); } };
 function showFitnessLesson() {
   const lesson = fitnessLessons[currentFitnessLesson];
   fitnessLessonContent.innerHTML = `<strong>${lesson.text}</strong><br><br>
@@ -229,7 +214,7 @@ function showFitnessLesson() {
   fitnessLessonNumber.textContent = currentFitnessLesson + 1;
 }
 
-// Task functions (unchanged)
+/* ---------- Task functions (single unified implementation) ---------- */
 const clickSound = document.getElementById("clickSound");
 const taskForm = document.getElementById("task-form");
 const tasksList = document.getElementById("tasksList");
@@ -238,51 +223,228 @@ const modalBackdrop = document.getElementById("modalBackdrop");
 const editTitle = document.getElementById("editTitle");
 const editTime = document.getElementById("editTime");
 let currentEditId = null;
+let cachedTasks = []; // will hold fetched tasks for filtering/rendering
 
+// small utilities
 function escapeHtml(s){ return String(s||'').replace(/[&<>"']/g, c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'})[c]); }
 function formatForInput(val){ const d=new Date(val); if(isNaN(d)) return ""; const pad=n=>n.toString().padStart(2,'0'); return `${d.getFullYear()}-${pad(d.getMonth()+1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`; }
-function checkTaskLimit() { const currentTasks = tasksList.querySelectorAll(".task-item").length; const limit = 3; if (currentTasks >= limit) { taskLimitNotification.style.display = "block"; return true; } taskLimitNotification.style.display = "none"; return false; }
-taskForm.addEventListener("submit", e => { if(checkTaskLimit()) e.preventDefault(); });
+function isToday(dateStr){
+  if(!dateStr) return false;
+  const d = new Date(dateStr);
+  const now = new Date();
+  return d.getFullYear()===now.getFullYear() && d.getMonth()===now.getMonth() && d.getDate()===now.getDate();
+}
+
+// Play click sound for buttons/anchors
 document.addEventListener("click", e => { if(e.target.tagName==="BUTTON"||e.target.tagName==="A"){ clickSound.currentTime=0; clickSound.play().catch(()=>{}); } });
+
+// Task limit: default 3 or based on user.level (if provided)
+function getTaskLimit(){ try{ const lvl = parseInt("{{ user.level if user.level is not none else 1 }}"); return 3 + (isNaN(lvl)?0:(lvl-1)*2); }catch(e){ return 3; } }
+function checkTaskLimit() { const currentTasks = tasksList.querySelectorAll(".task-item").length; const limit = getTaskLimit(); if (currentTasks >= limit) { taskLimitNotification.textContent = `Task limit reached (${limit}) — complete or delete tasks to add more.`; taskLimitNotification.style.display = "block"; return true; } taskLimitNotification.style.display = "none"; return false; }
+
+// Edit modal
 function openEditModal(id,title,timeVal){ currentEditId=id; editTitle.value=title||""; editTime.value=timeVal||""; modalBackdrop.style.display="flex"; }
 function closeEditModal(){ currentEditId=null; modalBackdrop.style.display="none"; }
 document.getElementById("cancelEditBtn").onclick = closeEditModal;
 document.getElementById("saveEditBtn").onclick = async () => {
   const newTitle = editTitle.value.trim();
+  const newTime = editTime.value || null;
   if(!newTitle){ alert("Title required."); return; }
   try{
-    const res = await fetch(`/modify_task/${currentEditId}`,{ method:"POST", headers:{"Content-Type":"application/json"}, body:JSON.stringify({title:newTitle}) });
+    const res = await fetch(`/modify_task/${currentEditId}`,{ method:"POST", headers:{"Content-Type":"application/json"}, body:JSON.stringify({title:newTitle, alarm_time:newTime}) });
     const data = await res.json();
-    if(data.success){ closeEditModal(); fetchTasksAndRender(); } else alert("Update failed.");
+    if(data.success){ closeEditModal(); await fetchTasksAndRender(); } else alert("Update failed.");
   }catch(e){ alert("Network error"); }
 };
+
+// Add task (submit form)
+taskForm.addEventListener("submit", async (e) => {
+  // let server handle creation via POST as before; we just let the default form submit
+  // but prevent adding if task limit reached
+  if(checkTaskLimit()){ e.preventDefault(); return; }
+  // allow default submit -> page reload or redirect; if you want AJAX add, change here
+});
+
+// Filters & search handlers
+document.getElementById("filterSelect").onchange = () => renderTasks(cachedTasks);
+document.getElementById("searchInput").oninput = () => renderTasks(cachedTasks);
+document.getElementById("clearFilters").onclick = () => {
+  document.getElementById("filterSelect").value = "all";
+  document.getElementById("searchInput").value = "";
+  renderTasks(cachedTasks);
+};
+
+// Fetch tasks and render
 async function fetchTasksAndRender() {
   try{
-    const res = await fetch("/tasks_list"); const tasks = await res.json();
-    const list = tasksList; list.innerHTML="";
-    if(!tasks||tasks.length===0){ list.innerHTML='<div class="small muted" style="padding:12px">No tasks yet — add your first task above.</div>'; }
-    else tasks.forEach(t=>{
-      const el=document.createElement("div"); el.className="task-item"; el.dataset.id=t.id;
-      const alarm = t.alarm_time || t.due_time || "";
-      const alarmText = alarm ? (new Date(alarm)).toLocaleString()+" • ":"";
-      el.innerHTML=`<div><div class="task-title">${escapeHtml(t.title)}</div><div class="task-meta">${alarmText}${t.completed?"Completed":"Pending"}</div></div>
+    const res = await fetch("/tasks_list");
+    const tasks = await res.json();
+    cachedTasks = tasks || [];
+    renderTasks(cachedTasks);
+  } catch(e){ console.error("Failed to fetch tasks:", e); }
+}
+
+// renderTasks uses filters + updates analytics + progress
+function applyFilters(tasks) {
+  const filter = document.getElementById("filterSelect").value;
+  const search = document.getElementById("searchInput").value.toLowerCase().trim();
+  const todayStr = new Date().toISOString().split("T")[0];
+
+  return tasks.filter(t => {
+    let match = true;
+    if (filter === "pending") match = !t.completed;
+    else if (filter === "completed") match = t.completed;
+    else if (filter === "today") {
+      // use alarm_time or due_time fields
+      const a = (t.alarm_time || t.due_time || "");
+      match = a && a.startsWith ? a.startsWith(todayStr) : isToday(a);
+    }
+    if (search && !t.title.toLowerCase().includes(search)) match = false;
+    return match;
+  });
+}
+
+function updateAnalytics(tasks) {
+  const total = tasks.length;
+  const completed = tasks.filter(t => t.completed).length;
+  const pending = total - completed;
+  document.getElementById("totalCount").textContent = total;
+  document.getElementById("pendingCount").textContent = pending;
+  document.getElementById("completedCount").textContent = completed;
+
+  // calendar list
+  const cal = document.getElementById("calendarList");
+  cal.innerHTML = "";
+  tasks.filter(t => t.alarm_time).sort((a,b) => new Date(a.alarm_time)-new Date(b.alarm_time)).forEach(t=>{
+    const item = document.createElement("div");
+    const when = new Date(t.alarm_time).toLocaleString();
+    item.textContent = `${when} — ${t.title}`;
+    cal.appendChild(item);
+  });
+}
+
+function updateProgress(tasks) {
+  const total = tasks.length;
+  const completed = tasks.filter(t => t.completed).length;
+  const percent = total > 0 ? Math.round((completed / total) * 100) : 0;
+  document.getElementById("progressBar").style.width = percent + "%";
+  document.getElementById("progressText").textContent = `${completed} / ${total} tasks completed`;
+}
+
+function renderTasks(tasks) {
+  const list = tasksList;
+  list.innerHTML = "";
+  const filtered = applyFilters(tasks);
+
+  if (filtered.length === 0) {
+    list.innerHTML = '<div class="small muted" style="padding:12px">No tasks found.</div>';
+  } else {
+    filtered.forEach(t => {
+      const el = document.createElement("div");
+      el.className = "task-item";
+      if (t.alarm_time && new Date(t.alarm_time) < new Date() && !t.completed) el.classList.add("overdue");
+      el.dataset.id = t.id;
+      const alarm = t.alarm_time || "";
+      const alarmText = alarm ? (new Date(alarm)).toLocaleString() + " • " : "";
+      el.innerHTML = `
+        <div>
+          <div class="task-title">${escapeHtml(t.title)}</div>
+          <div class="task-meta">${alarmText}${t.completed ? "Completed" : "Pending"}</div>
+        </div>
         <div class="task-actions">
-        ${t.completed?'<span class="small" style="color:#2ad19f">✔ Completed</span>':`<button class="btn btn-complete" data-id="${t.id}">Complete</button>`}
-        <button class="btn btn-edit" data-id="${t.id}" data-title="${escapeHtml(t.title)}" data-time="${alarm?formatForInput(alarm):''}">Modify</button>
-        <form method="POST" action="/delete_task/${t.id}" style="display:inline;"><button class="btn btn-delete" type="submit">Delete</button></form>
+          ${t.completed ? '<span class="small" style="color:#2ad19f">✔ Completed</span>' :
+          `<button class="btn btn-complete" data-id="${t.id}">Complete</button>`}
+          <button class="btn btn-edit" data-id="${t.id}" data-title="${escapeHtml(t.title)}" data-time="${alarm?formatForInput(alarm):''}">Modify</button>
+          <form method="POST" action="/delete_task/${t.id}" style="display:inline;">
+            <button class="btn btn-delete" type="submit">Delete</button>
+          </form>
         </div>`;
       list.appendChild(el);
     });
-    document.querySelectorAll(".btn-complete").forEach(btn=>{
-      btn.onclick=async ()=>{ btn.disabled=true; try{ const r=await fetch(`/complete_task/${btn.dataset.id}`,{method:"POST"}); const d=await r.json(); if(d.success){ document.getElementById("points").textContent=d.points||document.getElementById("points").textContent; fetchTasksAndRender(); } else { alert("Could not complete task"); btn.disabled=false; } } catch(e){ console.error(e); btn.disabled=false; } };
-    });
-    document.querySelectorAll(".btn-edit").forEach(btn=>{ btn.onclick=()=>openEditModal(btn.dataset.id,btn.dataset.title,btn.dataset.time); });
-    checkTaskLimit();
-  } catch(e){ console.error(e); }
+  }
+
+  // Rebind complete/edit buttons
+  document.querySelectorAll(".btn-complete").forEach(btn => {
+    btn.onclick = async () => {
+      btn.disabled = true;
+      try {
+        const r = await fetch(`/complete_task/${btn.dataset.id}`, { method: "POST" });
+        const d = await r.json();
+        if (d.success) {
+          document.getElementById("points").textContent = d.points || document.getElementById("points").textContent;
+          await fetchTasksAndRender();
+        } else {
+          alert("Could not complete task");
+          btn.disabled = false;
+        }
+      } catch (e) { console.error(e); btn.disabled = false; }
+    };
+  });
+  document.querySelectorAll(".btn-edit").forEach(btn => {
+    btn.onclick = () => openEditModal(btn.dataset.id, btn.dataset.title, btn.dataset.time);
+  });
+
+  // Update analytics and progress with full (unfiltered) task list
+  updateAnalytics(tasks);
+  updateProgress(tasks);
+
+  checkTaskLimit();
 }
 
-// Initial load
+// initial load
 fetchTasksAndRender();
+
+// optional: poll every X seconds to keep in sync if multiple devices are used
+// setInterval(fetchTasksAndRender, 15000);
+
+function updateAnalytics(tasks) {
+  const total = tasks.length;
+  const completed = tasks.filter(t => t.completed).length;
+  const pending = total - completed;
+  document.getElementById("totalCount").textContent = total;
+  document.getElementById("pendingCount").textContent = pending;
+  document.getElementById("completedCount").textContent = completed;
+
+  // --- Chart Update ---
+  const ctx = document.getElementById("tasksChart").getContext("2d");
+  if (tasksChart) {
+    // Update existing chart
+    tasksChart.data.datasets[0].data = [completed, pending];
+    tasksChart.update();
+  } else {
+    // Create chart first time
+    tasksChart = new Chart(ctx, {
+      type: "doughnut",
+      data: {
+        labels: ["Completed", "Pending"],
+        datasets: [{
+          data: [completed, pending],
+          backgroundColor: ["#2ad19f", "#ff6b87"], // green / pink
+          borderColor: "#0a1224", // match card background
+          borderWidth: 2
+        }]
+      },
+      options: {
+        plugins: {
+          legend: { labels: { color: "#eaf2ff" } }
+        }
+      }
+    });
+  }
+
+  // calendar list stays as before
+  const cal = document.getElementById("calendarList");
+  cal.innerHTML = "";
+  tasks.filter(t => t.alarm_time)
+      .sort((a,b) => new Date(a.alarm_time)-new Date(b.alarm_time))
+      .forEach(t=>{
+        const item = document.createElement("div");
+        const when = new Date(t.alarm_time).toLocaleString();
+        item.textContent = `${when} — ${t.title}`;
+        cal.appendChild(item);
+      });
+}
+
 </script>
 </body>
 </html>

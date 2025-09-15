@@ -3,7 +3,8 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>📈 Market Game</title>
+<title>📈 Market Simulator</title>
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 <style>
   body {
     font-family: 'Segoe UI', sans-serif;
@@ -17,7 +18,7 @@
     margin: 0;
   }
   h1 { margin-bottom: 10px; text-align: center; }
-  .stats, .actions, .history, .instructions {
+  .stats, .actions, .history, .instructions, .market {
     background: #111b3a;
     padding: 15px 25px;
     border-radius: 15px;
@@ -25,16 +26,12 @@
     margin: 15px 0;
     text-align: center;
     box-shadow: 0 0 15px rgba(0,208,255,0.3);
-  }
-  .price {
-    font-size: 24px;
-    font-weight: bold;
-    color: #00d0ff;
-    transition: color 0.3s ease;
+    width: 90%;
+    max-width: 700px;
   }
   button {
-    margin: 10px;
-    padding: 10px 20px;
+    margin: 5px;
+    padding: 8px 15px;
     border: none;
     border-radius: 12px;
     background: #00d0ff;
@@ -44,11 +41,7 @@
     transition: transform 0.2s ease, filter 0.2s ease;
   }
   button:hover { transform: scale(1.05); filter: brightness(1.1); }
-  #message {
-    font-size: 18px;
-    font-weight: bold;
-    margin-top: 10px;
-  }
+  .price { font-weight: bold; }
   .win-popup {
     position: fixed;
     top: 30%;
@@ -65,119 +58,92 @@
     box-shadow: 0 0 25px rgba(0,255,106,0.5);
     z-index: 1000;
   }
-  .history ul { text-align: left; max-height: 150px; overflow-y: auto; padding-left: 20px; }
+  canvas { background: #111b3a; border-radius:15px; margin-top:15px; }
 </style>
 </head>
 <body>
 
-<h1>📈 Market Game</h1>
+<h1>📈 Market Simulator</h1>
 
 <div class="instructions">
   💡 <strong>How to Play:</strong><br>
-  You start with 100 coins. Buy items at low prices and sell at high prices. Each turn, the market price changes randomly.<br>
-  Make as much profit as possible in 10 turns. Watch for random events that can help or hinder your coins!<br>
-  ✅ Aim to end with more coins than you started.
+  You start with 100 coins. Buy items at low prices and sell at high prices. Each turn, the market prices fluctuate realistically.<br>
+  Try to make as much profit as possible. Watch for random events that can help or hinder your coins!
 </div>
 
 <div class="stats">
-  <p>💰 Coins: <span id="coins" title="Your available money">100</span></p>
-  <p>📦 Items: <span id="items" title="Number of items you own">0</span></p>
-  <p>Turns Left: <span id="turns">10</span></p>
+  <p>💰 Coins: <span id="coins">100</span></p>
+  <p>Turns Left: <span id="turns">20</span></p>
+  <p>📦 Portfolio:</p>
+  <ul id="portfolio"></ul>
 </div>
 
-<div class="stats">
-  <p>Current Item: <span id="itemName">📱 Phone</span></p>
-  <p class="price">Price: <span id="price">50</span> coins</p>
+<div class="market">
+  <h3>🛒 Market Items</h3>
+  <div id="marketItems"></div>
 </div>
-
-<div class="actions">
-  <button onclick="buyItem()">Buy 🛒</button>
-  <button onclick="sellItem()">Sell 💰</button>
-</div>
-
-<div id="message">⏳ Waiting for market...</div>
 
 <div class="history">
   <h3>📜 Transaction History</h3>
   <ul id="transactionHistory"></ul>
 </div>
 
+<canvas id="priceChart" width="700" height="300"></canvas>
+
 <button onclick="resetGame()">🔄 New Game</button>
-<a href="{{ url_for('quests_page') }}"><button>⬅ Back to Quests</button></a>
 
 <div class="win-popup" id="winPopup"></div>
 
-<!-- Sound effects -->
+<!-- Sounds -->
 <audio id="buySound" src="/static/buy.mp3" preload="auto"></audio>
 <audio id="sellSound" src="/static/sell.mp3" preload="auto"></audio>
 <audio id="eventSound" src="/static/event.mp3" preload="auto"></audio>
 
 <script>
-let coins = 100, items = 0, turns = 10, price = 50;
-let itemNames = ["📱 Phone", "🎮 Game", "🍎 Apple", "👟 Shoes", "🎧 Headphones"];
-let currentItem = "📱 Phone";
-let marketInterval;
-const transactionHistory = [];
+let coins = 100;
+let turns = 20;
+let marketItems = [
+  {name:"📱 Phone", price:50, stock:10, history:[50]},
+  {name:"🎮 Game", price:30, stock:15, history:[30]},
+  {name:"🍎 Apple", price:5, stock:50, history:[5]},
+  {name:"👟 Shoes", price:40, stock:20, history:[40]},
+  {name:"🎧 Headphones", price:60, stock:8, history:[60]}
+];
+let portfolio = {};
+let transactionHistory = [];
+let chart;
 
-function randomInt(min,max){return Math.floor(Math.random()*(max-min+1))+min;}
-function updateDisplay(){
-  document.getElementById("coins").textContent = coins;
-  document.getElementById("items").textContent = items;
+// Utility
+function randomInt(min,max){ return Math.floor(Math.random()*(max-min+1))+min; }
+function formatCoins(c){ return c.toFixed(0); }
+
+// Update displays
+function updateDisplay() {
+  document.getElementById("coins").textContent = formatCoins(coins);
   document.getElementById("turns").textContent = turns;
-  document.getElementById("price").textContent = price;
-  document.getElementById("itemName").textContent = currentItem;
-  // Animate price color
-  document.getElementById("price").style.color = randomInt(0,1)? "#00ff6a":"#ff4d6d";
-}
 
-function nextTurn(){
-  if(turns <= 0){ clearInterval(marketInterval); endGame(); return;}
-  turns--;
-
-  // Random price fluctuation
-  price = randomInt(20,100);
-  currentItem = itemNames[randomInt(0,itemNames.length-1)];
-  updateDisplay();
-
-  // Random event
-  const eventChance = Math.random();
-  if(eventChance < 0.2){
-    const bonus = randomInt(5,25);
-    coins += bonus;
-    document.getElementById("message").textContent = `🎉 Lucky Event! You received ${bonus} coins!`;
-    document.getElementById("eventSound").play();
-  }else if(eventChance < 0.3 && coins >= 10){
-    const loss = randomInt(5,15);
-    coins -= loss;
-    document.getElementById("message").textContent = `⚠️ Market Crash! Lost ${loss} coins!`;
-    document.getElementById("eventSound").play();
-  } else {
-    document.getElementById("message").textContent = "📊 Market updated!";
+  let portfolioEl = document.getElementById("portfolio");
+  portfolioEl.innerHTML = "";
+  for(let key in portfolio){
+    portfolioEl.innerHTML += `<li>${key}: ${portfolio[key].amount} units (Avg ${formatCoins(portfolio[key].avgPrice)} coins)</li>`;
   }
+
+  let marketDiv = document.getElementById("marketItems");
+  marketDiv.innerHTML = "";
+  marketItems.forEach((item, idx)=>{
+    marketDiv.innerHTML += `
+      <div>
+        <strong>${item.name}</strong> - Price: <span class="price">${formatCoins(item.price)}</span> coins | Stock: ${item.stock}
+        <button onclick="buyItem(${idx})">Buy</button>
+        <button onclick="sellItem(${idx})">Sell</button>
+      </div>
+    `;
+  });
+
+  updateChart();
 }
 
-function buyItem(){
-  if(coins >= price){
-    coins -= price; items++;
-    document.getElementById("buySound").play();
-    addTransaction(`Bought 1 ${currentItem} for ${price} coins`);
-  }else{
-    document.getElementById("message").textContent = "❌ Not enough coins!";
-  }
-  updateDisplay();
-}
-
-function sellItem(){
-  if(items>0){
-    coins += price; items--;
-    document.getElementById("sellSound").play();
-    addTransaction(`Sold 1 ${currentItem} for ${price} coins`);
-  }else{
-    document.getElementById("message").textContent = "❌ You have no items to sell!";
-  }
-  updateDisplay();
-}
-
+// Transactions
 function addTransaction(text){
   transactionHistory.push(text);
   const ul = document.getElementById("transactionHistory");
@@ -186,28 +152,106 @@ function addTransaction(text){
   ul.appendChild(li);
 }
 
-function endGame(){
-  let result = coins>100 ? "🎉 You Win! Great trading!" : "❌ You Lose! Try again!";
-  const popup = document.getElementById("winPopup");
-  popup.textContent = result + ` Final Coins: ${coins}`;
-  popup.style.display = "block";
-  clearInterval(marketInterval);
-}
-
-function resetGame(){
-  coins = 100; items=0; turns=10; price=50; currentItem="📱 Phone";
-  transactionHistory.length=0;
-  document.getElementById("transactionHistory").innerHTML="";
+// Buy/Sell
+function buyItem(idx){
+  let item = marketItems[idx];
+  if(coins>=item.price && item.stock>0){
+    coins -= item.price;
+    item.stock--;
+    if(!portfolio[item.name]) portfolio[item.name]={amount:0, avgPrice:0};
+    let p = portfolio[item.name];
+    p.avgPrice = ((p.avgPrice*p.amount)+item.price)/(p.amount+1);
+    p.amount++;
+    addTransaction(`Bought 1 ${item.name} for ${formatCoins(item.price)} coins`);
+    document.getElementById("buySound").play();
+  } else alert("❌ Not enough coins or stock!");
   updateDisplay();
-  document.getElementById("message").textContent = "⏳ Waiting for market...";
-  document.getElementById("winPopup").style.display="none";
-  clearInterval(marketInterval);
-  marketInterval = setInterval(nextTurn,3000);
 }
 
-// Start game
+function sellItem(idx){
+  let item = marketItems[idx];
+  if(portfolio[item.name] && portfolio[item.name].amount>0){
+    coins += item.price;
+    item.stock++;
+    portfolio[item.name].amount--;
+    if(portfolio[item.name].amount===0) delete portfolio[item.name];
+    addTransaction(`Sold 1 ${item.name} for ${formatCoins(item.price)} coins`);
+    document.getElementById("sellSound").play();
+  } else alert("❌ No items to sell!");
+  updateDisplay();
+}
+
+// Market Update
+function nextTurn(){
+  if(turns<=0){ endGame(); return; }
+  turns--;
+  marketItems.forEach(item=>{
+    // ±10% fluctuation
+    let change = item.price* (Math.random()*0.2-0.1);
+    item.price = Math.max(1, item.price + change);
+    item.history.push(item.price);
+  });
+  randomEvent();
+  updateDisplay();
+}
+
+function randomEvent(){
+  const chance = Math.random();
+  if(chance<0.1){ coins+=20; addTransaction("🎉 Bonus Event! +20 coins"); document.getElementById("eventSound").play(); }
+  else if(chance<0.05 && coins>=10){ coins-=10; addTransaction("⚠️ Market crash! -10 coins"); document.getElementById("eventSound").play(); }
+}
+
+// Chart
+function updateChart(){
+  if(!chart){
+    const ctx = document.getElementById("priceChart").getContext("2d");
+    chart = new Chart(ctx,{
+      type:'line',
+      data:{
+        labels: Array.from({length:marketItems[0].history.length}, (_,i)=>i+1),
+        datasets: marketItems.map(item=>({
+          label:item.name,
+          data:item.history,
+          borderColor:'#00d0ff',
+          backgroundColor:'rgba(0,208,255,0.2)',
+          tension:0.3
+        }))
+      },
+      options:{
+        responsive:true,
+        scales:{
+          y:{ beginAtZero:true, title:{ display:true, text:'Price (coins)' } },
+          x:{ title:{ display:true, text:'Turns' } }
+        }
+      }
+    });
+  } else {
+    chart.data.labels = Array.from({length:marketItems[0].history.length}, (_,i)=>i+1);
+    chart.data.datasets.forEach((ds, i)=> ds.data = marketItems[i].history);
+    chart.update();
+  }
+}
+
+// End Game
+function endGame(){
+  let popup = document.getElementById("winPopup");
+  popup.textContent = coins>100?"🎉 You Win!":"❌ You Lose!";
+  popup.style.display="block";
+  clearInterval(gameInterval);
+}
+
+// Reset
+function resetGame(){
+  coins=100; turns=20; portfolio={}; transactionHistory=[]; document.getElementById("transactionHistory").innerHTML="";
+  marketItems.forEach(item=>{item.stock=randomInt(5,20); item.price=item.history[0]; item.history=[item.price];});
+  updateDisplay();
+  document.getElementById("winPopup").style.display="none";
+  clearInterval(gameInterval);
+  gameInterval = setInterval(nextTurn,3000);
+}
+
+let gameInterval;
 resetGame();
 </script>
-
 </body>
 </html>

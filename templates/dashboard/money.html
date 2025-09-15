@@ -6,27 +6,26 @@
 <title>💰 Money Quiz Game</title>
 <style>
 body {
-  font-family: Arial, sans-serif;
+  font-family: 'Segoe UI', sans-serif;
   background: linear-gradient(135deg,#050615,#0f1630);
   color: #00d0ff;
   display: flex;
   flex-direction: column;
   align-items: center;
-  justify-content: flex-start;
+  padding: 20px;
   min-height: 100vh;
   margin: 0;
-  padding: 20px;
 }
-h1 { margin-bottom: 10px; text-align:center; }
+h1 { margin-bottom: 10px; text-align:center; text-shadow:0 0 10px #00d0ff; }
 .quiz-box {
   background: #0f1630;
   padding: 20px;
   border-radius: 15px;
   border: 2px solid #00d0ff;
   width: 100%;
-  max-width: 500px;
+  max-width: 600px;
   text-align: center;
-  box-shadow: 0 0 15px rgba(0,208,255,0.3);
+  box-shadow: 0 0 25px rgba(0,208,255,0.5);
 }
 button {
   padding: 10px 20px;
@@ -38,24 +37,15 @@ button {
   cursor: pointer;
   margin: 8px 0;
   width: 80%;
-  transition: transform 0.2s ease, filter 0.2s ease;
+  transition: transform 0.2s ease, filter 0.2s ease, box-shadow 0.2s ease;
 }
-button:hover { transform: scale(1.05); filter: brightness(1.1); }
+button:hover { transform: scale(1.05); filter: brightness(1.1); box-shadow: 0 0 15px #00ff6a; }
+.correct { background: #00ff6a !important; color: #050615; }
+.wrong { background: #ff4d6d !important; color: #050615; }
 .score { margin-top: 10px; font-weight: bold; font-size: 18px; }
-.progress-bar {
-  width: 100%;
-  background: #111b3a;
-  border-radius: 12px;
-  overflow: hidden;
-  margin: 10px 0;
-}
-.progress-bar-inner {
-  height: 20px;
-  width: 0%;
-  background: #00ff6a;
-  transition: width 0.3s ease;
-}
-#timer { font-weight: bold; margin-top:10px; }
+.progress-bar { width: 100%; background: #111b3a; border-radius: 12px; overflow: hidden; margin: 10px 0; }
+.progress-bar-inner { height: 20px; width: 0%; background: #00ff6a; transition: width 0.3s ease; }
+#timer { font-weight: bold; margin-top:10px; text-shadow: 0 0 5px #00ff6a; }
 #hint-btn { width: auto; padding: 5px 15px; margin-top:10px; }
 #endPopup {
   position: fixed;
@@ -106,25 +96,30 @@ const questions = [
   { q:"Which is a good way to save money?", options:["Spend on sales","Use a budget","Ignore bills","Buy lottery tickets"], answer:1, hint:"It involves planning your spending." },
   { q:"What is interest?", options:["Money you earn or pay on savings/loans","A type of coin","A bank branch","None"], answer:0, hint:"It's what banks pay you or charge you." },
   { q:"What is a budget?", options:["Plan for spending and saving","A type of wallet","A shopping app","A bank account"], answer:0, hint:"It's a plan to manage money." },
-  { q:"Why save money?", options:["For emergencies","For parties","To buy everything","To spend immediately"], answer:0, hint:"It's for unexpected needs." }
+  { q:"Why save money?", options:["For emergencies","For parties","To buy everything","To spend immediately"], answer:0, hint:"It's for unexpected needs." },
+  { q:"Investing in stocks is:", options:["Risk-free","A way to grow money","Illegal","Guaranteed profit"], answer:1, hint:"It can grow your money over time." },
+  { q:"What is inflation?", options:["Prices go up over time","Your salary decreases","Money multiplies magically","Banks close"], answer:0, hint:"It reduces money's value over time." }
 ];
 
 let shuffledQuestions = [...questions].sort(()=>Math.random()-0.5);
-let current=0, score=0, timer=15, hintUsed=false;
+let current=0, score=0, timer=15, hintUsed=false, streak=0;
 let timerInterval;
 
 function loadQuestion(){
   if(current>=shuffledQuestions.length){endGame();return;}
   const q = shuffledQuestions[current];
   document.getElementById("question").textContent=q.q;
+
   const answersDiv=document.getElementById("answers");
   answersDiv.innerHTML="";
-  q.options.forEach((opt, idx)=>{
+  let options = [...q.options].sort(()=>Math.random()-0.5); // randomize options
+  options.forEach((opt, idx)=>{
     const btn=document.createElement("button");
     btn.textContent=opt;
-    btn.onclick=()=>checkAnswer(idx);
+    btn.onclick=()=>checkAnswer(idx, options);
     answersDiv.appendChild(btn);
   });
+
   document.getElementById("score").textContent=`Score: ${score}`;
   document.getElementById("progress").style.width=`${(current/shuffledQuestions.length)*100}%`;
   timer=15; hintUsed=false; document.getElementById("hint-btn").disabled=false;
@@ -137,23 +132,30 @@ function startTimer(){
   timerInterval=setInterval(()=>{
     timer--;
     document.getElementById("timer").textContent=`⏱ Time left: ${timer}s`;
-    if(timer<=0){clearInterval(timerInterval); alert("⏳ Time's up!"); nextQuestion();}
+    if(timer<=0){clearInterval(timerInterval); streak=0; nextQuestion();}
   },1000);
 }
 
-function checkAnswer(idx){
+function checkAnswer(idx, options){
   clearInterval(timerInterval);
-  const q=shuffledQuestions[current];
-  if(idx===q.answer){
-    score+=10;
+  const q = shuffledQuestions[current];
+  const correctIdx = options.indexOf(q.options[q.answer]);
+  const buttons = document.getElementById("answers").children;
+
+  if(idx===correctIdx){
+    score += 10 + Math.floor(timer/2); // faster = more points
+    streak++;
+    buttons[idx].classList.add("correct");
     document.getElementById("correctSound").play();
-    alert("✅ Correct!");
-  }else{
-    score-=5;
+  } else {
+    score -= 5;
+    streak=0;
+    buttons[idx].classList.add("wrong");
+    buttons[correctIdx].classList.add("correct");
     document.getElementById("wrongSound").play();
-    alert(`❌ Wrong! Correct answer: ${q.options[q.answer]}`);
   }
-  nextQuestion();
+
+  setTimeout(nextQuestion,800);
 }
 
 function nextQuestion(){
@@ -163,17 +165,25 @@ function nextQuestion(){
 
 function useHint(){
   if(hintUsed) return;
-  const q=shuffledQuestions[current];
-  alert(`💡 Hint: ${q.hint}`);
+  const q = shuffledQuestions[current];
+  const answersDiv = document.getElementById("answers");
+  let buttons = Array.from(answersDiv.children);
+  // Remove one wrong answer
+  let wrongIdxs = buttons.map((b,i)=>i).filter(i=>buttons[i].textContent!==q.options[q.answer]);
+  let removeIdx = wrongIdxs[randomInt(0,wrongIdxs.length-1)];
+  buttons[removeIdx].disabled=true;
   hintUsed=true;
   document.getElementById("hint-btn").disabled=true;
 }
 
+function randomInt(min,max){ return Math.floor(Math.random()*(max-min+1))+min; }
+
 function endGame(){
   clearInterval(timerInterval);
   const popup=document.getElementById("endPopup");
-  let msg=score>=30?"🎉 Excellent! You know your money!":"❌ Try Again! Learn more about saving.";
-  popup.innerHTML=`${msg}<br>Final Score: ${score}`;
+  let percentage = Math.round((score/(shuffledQuestions.length*20))*100);
+  let msg=score>=40?"🎉 Excellent! You know your money!":"❌ Try Again! Learn more about saving.";
+  popup.innerHTML=`${msg}<br>Final Score: ${score}<br>Correct Answers: ${Math.max(0,Math.floor(score/10))}/${shuffledQuestions.length}<br>Score %: ${percentage}%<br>Longest Streak: ${streak}`;
   popup.style.display="block";
 }
 

@@ -3,12 +3,11 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>💰 Budget Builder Game</title>
+  <title>💡 Finance Education Game</title>
   <style>
-    /* ===== General Styles ===== */
     body {
       font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-      background: linear-gradient(135deg, #050615, #0f1630);
+      background: linear-gradient(135deg,#050615,#0f1630);
       color: #eaf6ff;
       display: flex;
       flex-direction: column;
@@ -17,20 +16,11 @@
       min-height: 100vh;
       margin: 0;
     }
-    h1, h2, h3 { margin: 10px 0; text-align: center; }
+    h1,h2,h3 { margin: 10px 0; text-align: center; }
     p { margin: 5px 0; text-align: center; }
 
-    /* ===== Game Container ===== */
-    .game-container {
-      max-width: 700px;
-      width: 100%;
-      display: flex;
-      flex-direction: column;
-      align-items: center;
-      gap: 20px;
-    }
+    .game-container { max-width: 800px; width: 100%; display: flex; flex-direction: column; align-items: center; gap: 20px; }
 
-    /* ===== Budget Box ===== */
     .budget-box {
       background: #0f1630;
       padding: 15px 25px;
@@ -42,7 +32,6 @@
       text-align: center;
     }
 
-    /* ===== Instructions ===== */
     .instructions {
       background: #111b3a;
       padding: 15px 20px;
@@ -50,59 +39,35 @@
       border-left: 4px solid #00d0ff;
       font-size: 14px;
       text-align: center;
-      max-width: 600px;
+      max-width: 700px;
     }
 
-    /* ===== Categories ===== */
-    .categories {
-      display: flex;
-      flex-wrap: wrap;
-      gap: 20px;
-      justify-content: center;
-    }
+    .categories { display: flex; flex-wrap: wrap; gap: 20px; justify-content: center; }
     .category {
       background: #111b3a;
       padding: 15px;
       border-radius: 15px;
       text-align: center;
-      width: 150px;
+      width: 160px;
       cursor: pointer;
       border: 2px solid #00d0ff;
       transition: transform 0.2s ease, background 0.2s ease, border-color 0.2s ease;
     }
-    .category:hover {
-      transform: translateY(-5px) scale(1.05);
-      background: #152452;
-      border-color: #ffd24d;
-    }
-    .category.funded {
-      background: #0a2b1f;
-      border-color: #4dff7e;
-      cursor: default;
-      transform: none;
-    }
-    .category .amount {
-      font-weight: bold;
-      color: #00d0ff;
-      margin-top: 5px;
-    }
+    .category:hover { transform: translateY(-5px) scale(1.05); background: #152452; border-color: #ffd24d; }
+    .category.funded { background: #0a2b1f; border-color: #4dff7e; cursor: default; }
+    .category .amount { font-weight: bold; color: #00d0ff; margin-top: 5px; }
 
-    /* ===== Allocations & Messages ===== */
     .allocations {
       margin-top: 10px;
       padding: 15px;
       border: 2px dashed #00d0ff;
       border-radius: 12px;
-      max-width: 400px;
+      max-width: 500px;
       text-align: center;
     }
-    .score {
-      margin-top: 10px;
-      font-size: 18px;
-      font-weight: bold;
-    }
 
-    /* ===== Buttons ===== */
+    .score { margin-top: 10px; font-size: 18px; font-weight: bold; }
+
     button {
       margin-top: 10px;
       padding: 10px 20px;
@@ -115,21 +80,34 @@
       transition: transform 0.2s ease, filter 0.2s ease;
     }
     button:hover { transform: scale(1.05); filter: brightness(1.1); }
-    .win-loss-btn { background: #ffd24d; color: #001; }
-
+    .finish-btn { background: #ffd24d; color: #001; }
+    .back-btn { background: #4dff7e; color: #001; }
+    
+    .report {
+      background: #111b3a;
+      border-radius: 15px;
+      padding: 20px;
+      border: 2px solid #00d0ff;
+      margin-top: 20px;
+      max-width: 600px;
+      display: none;
+    }
+    .report h3 { color: #ffd24d; }
   </style>
 </head>
 <body>
 
-  <h1>💰 Budget Builder Game</h1>
-  <p>Allocate your budget wisely across different categories!</p>
+  <h1>💡 Finance Education Game</h1>
+  <p>Learn how to manage money by allocating wisely between needs, wants, and savings.</p>
 
   <div class="instructions">
     <h3>How to Play:</h3>
-    <p>1️⃣ You start with a random number of coins.</p>
-    <p>2️⃣ Click on a category to allocate coins (5 coins per click).</p>
-    <p>3️⃣ Fund all categories to match their target to win!</p>
-    <p>4️⃣ Run out of coins before completing? You lose.</p>
+    <p>1️⃣ You start with a random budget.</p>
+    <p>2️⃣ Click a category to allocate 5 coins at a time.</p>
+    <p>3️⃣ Necessities (Food, Rent, Health, Education) MUST be funded first.</p>
+    <p>4️⃣ Luxuries (Shopping, Entertainment) are optional.</p>
+    <p>5️⃣ You can also leave money unspent → savings = bonus points!</p>
+    <p>🎯 Goal: Balance Needs ✅ + Some Wants 🙂 + Savings 💰</p>
   </div>
 
   <div class="game-container">
@@ -139,40 +117,50 @@
 
     <div class="categories" id="categories"></div>
 
-    <div class="score" id="message">💡 Click on a category to allocate coins.</div>
+    <div class="score" id="message">💡 Allocate your money wisely!</div>
 
     <div class="allocations">
       <h3>📊 Your Allocations</h3>
       <ul id="allocationList"></ul>
     </div>
 
-    <button onclick="resetGame()" class="win-loss-btn" id="newRoundBtn">🔄 New Round</button>
-    <a href="{{ url_for('quests_page') }}">
-      <button>⬅ Back to Quests</button>
-    </a>
+    <button onclick="finishGame()" class="finish-btn">✅ Complete Shopping</button>
+    <button onclick="resetGame()" class="win-loss-btn">🔄 New Round</button>
+    <a href="{{ url_for('quests_page') }}"><button class="back-btn">⬅ Back to Quests</button></a>
+
+    <div class="report" id="report"></div>
   </div>
 
   <script>
-    // ===== Variables =====
     let budget = 0;
     let allocations = [];
-    const categoryPool = ["Food", "Entertainment", "Transport", "Education", "Shopping", "Health"];
+
+    const categoryPool = [
+      { name: "Food", type: "necessity" },
+      { name: "Rent", type: "necessity" },
+      { name: "Education", type: "necessity" },
+      { name: "Health", type: "necessity" },
+      { name: "Transport", type: "necessity" },
+      { name: "Entertainment", type: "luxury" },
+      { name: "Shopping", type: "luxury" },
+      { name: "Savings", type: "savings" }
+    ];
+
     const categoriesEl = document.getElementById("categories");
 
     function randomInt(min, max) { return Math.floor(Math.random() * (max - min + 1)) + min; }
 
-    // ===== Initialize Game =====
     function generateCategories() {
       categoriesEl.innerHTML = "";
       allocations = [];
       categoryPool.forEach(cat => {
-        const target = randomInt(10, 50);
-        allocations.push({ category: cat, amountAllocated: 0, target });
+        const target = (cat.type === "necessity") ? randomInt(20, 50) : randomInt(10, 40);
+        allocations.push({ category: cat.name, type: cat.type, amountAllocated: 0, target });
 
         const div = document.createElement("div");
         div.className = "category";
-        div.innerHTML = `<p>${cat}</p><p class="amount">0 / ${target}</p>`;
-        div.onclick = () => allocate(cat);
+        div.innerHTML = `<p>${cat.name}</p><p class="amount">0 / ${target}</p>`;
+        div.onclick = () => allocate(cat.name);
         categoriesEl.appendChild(div);
       });
     }
@@ -185,20 +173,19 @@
         document.getElementById("message").textContent = "❌ No more coins left!";
         return;
       }
-      if (cat.amountAllocated >= cat.target) {
+      if (cat.amountAllocated >= cat.target && cat.type !== "savings") {
         document.getElementById("message").textContent = `✅ ${catName} is fully funded!`;
         return;
       }
 
-      const allocateAmount = Math.min(5, budget, cat.target - cat.amountAllocated);
+      const allocateAmount = Math.min(5, budget, cat.target - cat.amountAllocated || 5);
       cat.amountAllocated += allocateAmount;
       budget -= allocateAmount;
 
       div.querySelector(".amount").textContent = `${cat.amountAllocated} / ${cat.target}`;
-      if (cat.amountAllocated === cat.target) div.classList.add("funded");
+      if (cat.amountAllocated >= cat.target && cat.type !== "savings") div.classList.add("funded");
 
       updateAllocations();
-      checkWinLoss();
     }
 
     function updateAllocations() {
@@ -212,26 +199,41 @@
       });
     }
 
-    function checkWinLoss() {
-      const allFunded = allocations.every(c => c.amountAllocated === c.target);
-      if (allFunded) {
-        document.getElementById("message").textContent = "🎉 Congratulations! Budget perfectly allocated!";
-      } else if (budget === 0 && !allFunded) {
-        document.getElementById("message").textContent = "⚠️ You ran out of coins! Try again!";
-      }
+    function finishGame() {
+      let necessitiesFunded = allocations.filter(c => c.type === "necessity").every(c => c.amountAllocated >= c.target);
+      let savings = allocations.find(c => c.type === "savings").amountAllocated;
+      let luxuries = allocations.filter(c => c.type === "luxury").reduce((sum, c) => sum + c.amountAllocated, 0);
+
+      let score = 0;
+      if (necessitiesFunded) score += 50;
+      score += Math.min(savings, 50); // reward savings
+      score += Math.min(luxuries, 20); // small reward for enjoying life
+
+      let report = `
+        <h3>📑 Financial Report</h3>
+        <p>Necessities funded: ${necessitiesFunded ? "✅ Yes" : "❌ No"}</p>
+        <p>Total Savings: 💰 ${savings} coins</p>
+        <p>Luxury Spending: 🎮 ${luxuries} coins</p>
+        <p><b>Final Score: ${score} / 120</b></p>
+        <h4>💡 Tip:</h4>
+        <p>${necessitiesFunded ? "Great job prioritizing needs!" : "Always cover your needs first before wants."}</p>
+        <p>${savings > 0 ? "Good work saving money!" : "Try to save at least some money for future."}</p>
+      `;
+      const reportEl = document.getElementById("report");
+      reportEl.innerHTML = report;
+      reportEl.style.display = "block";
     }
 
     function resetGame() {
-      budget = randomInt(50, 120);
-      document.getElementById("message").textContent = "💡 Click on a category to allocate coins.";
+      budget = randomInt(100, 200);
+      document.getElementById("message").textContent = "💡 Allocate your money wisely!";
       document.getElementById("budget").textContent = budget;
+      document.getElementById("report").style.display = "none";
       generateCategories();
       updateAllocations();
     }
 
-    // Start game
     resetGame();
   </script>
-
 </body>
 </html>

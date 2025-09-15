@@ -3,85 +3,87 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>💰 Save or Spend Game</title>
+<title>💰 Save or Spend Game - Advanced</title>
 <style>
-  body {
-    font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-    background: linear-gradient(135deg,#050615,#0f1630);
-    color: #eaf6ff;
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    padding: 30px;
-    min-height: 100vh;
-    margin: 0;
-  }
-  h1 { margin-bottom: 10px; }
-  p { margin: 5px 0; text-align:center; max-width:500px; }
+body {
+  font-family: 'Segoe UI', sans-serif;
+  background: linear-gradient(135deg,#050615,#0f1630);
+  color: #eaf6ff;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding: 30px;
+  min-height: 100vh;
+  margin: 0;
+}
+h1 { margin-bottom: 10px; text-align:center; text-shadow:0 0 10px #00d0ff; }
+p { margin: 5px 0; text-align:center; max-width:600px; }
 
-  .box {
-    background: #0f1630;
-    padding: 15px 25px;
-    border-radius: 15px;
-    border: 2px solid #00d0ff;
-    font-size: 18px;
-    margin-bottom: 20px;
-    box-shadow: 0 0 15px rgba(0,208,255,0.3);
-    min-width: 250px;
-    text-align: center;
-    position: relative;
-    overflow: hidden;
-  }
+.box {
+  background: #0f1630;
+  padding: 20px 30px;
+  border-radius: 15px;
+  border: 2px solid #00d0ff;
+  font-size: 18px;
+  margin-bottom: 20px;
+  box-shadow: 0 0 20px rgba(0,208,255,0.3);
+  min-width: 250px;
+  text-align: center;
+  position: relative;
+  overflow: hidden;
+}
 
-  button {
-    margin: 10px;
-    padding: 12px 25px;
-    border: none;
-    border-radius: 12px;
-    background: #00d0ff;
-    color: #050615;
-    font-weight: bold;
-    cursor: pointer;
-    transition: transform 0.2s ease, background 0.2s ease;
-  }
-  button:hover { transform: scale(1.05); background: #00b8e6; }
+button {
+  margin: 10px;
+  padding: 12px 25px;
+  border: none;
+  border-radius: 12px;
+  background: #00d0ff;
+  color: #050615;
+  font-weight: bold;
+  cursor: pointer;
+  transition: transform 0.2s ease, background 0.2s ease, box-shadow 0.2s ease;
+}
+button:hover { transform: scale(1.05); background: #00b8e6; box-shadow:0 0 15px #00ff6a; }
 
-  #message { font-weight: bold; margin-top: 15px; font-size: 18px; min-height: 24px; }
+#message { font-weight: bold; margin-top: 15px; font-size: 18px; min-height: 28px; text-shadow:0 0 5px #00ff6a; }
+.progress-bar { width: 100%; background: #111b3a; border-radius: 12px; overflow: hidden; margin: 15px 0; height: 20px; }
+.progress-bar-inner { height: 100%; width: 0%; background: #00ff6a; transition: width 0.5s ease; }
 
-  .coin {
-    position: absolute;
-    font-size: 20px;
-    animation: fly 1s ease forwards;
-    pointer-events: none;
-  }
-  @keyframes fly {
-    0% { transform: translateY(0) scale(1); opacity: 1; }
-    50% { transform: translateY(-50px) scale(1.3); opacity: 1; }
-    100% { transform: translateY(-100px) scale(0); opacity: 0; }
-  }
+.coin {
+  position: absolute;
+  font-size: 20px;
+  animation: fly 1s ease forwards;
+  pointer-events: none;
+}
+@keyframes fly {
+  0% { transform: translateY(0) scale(1); opacity: 1; }
+  50% { transform: translateY(-50px) scale(1.3); opacity: 1; }
+  100% { transform: translateY(-100px) scale(0); opacity: 0; }
+}
 
-  #endPopup {
-    position: fixed;
-    top:50%;
-    left:50%;
-    transform: translate(-50%,-50%);
-    background: #0f1630;
-    border: 2px solid #00d0ff;
-    padding: 30px 40px;
-    border-radius: 15px;
-    text-align:center;
-    display:none;
-    font-size:22px;
-    color:#00ff6a;
-    box-shadow:0 0 25px rgba(0,255,106,0.5);
-    z-index:1000;
-  }
+#endPopup {
+  position: fixed;
+  top:50%;
+  left:50%;
+  transform: translate(-50%,-50%);
+  background: #0f1630;
+  border: 2px solid #00d0ff;
+  padding: 30px 40px;
+  border-radius: 15px;
+  text-align:center;
+  display:none;
+  font-size:22px;
+  color:#00ff6a;
+  box-shadow:0 0 30px rgba(0,255,106,0.7);
+  z-index:1000;
+}
 </style>
 </head>
 <body>
 
-<h1>💰 Save or Spend Game</h1>
-<p>Reach 300 coins in your bank to win! Use your budget wisely: spend to enjoy, save to grow. Sometimes lucky events happen randomly!</p>
+<h1>💰 Save or Spend Game - Advanced</h1>
+<p>Reach 500 coins in your bank to win! Save wisely, spend carefully, and watch out for random events! 💡 Every round brings a new financial tip.</p>
 
 <div class="box" id="budgetBox">
   Current Budget: <span id="budget">0</span> coins
@@ -89,10 +91,15 @@
 
 <div class="box" id="bankBox">
   Bank Balance: <span id="bank">0</span> coins
+  <div class="progress-bar"><div class="progress-bar-inner" id="bankProgress"></div></div>
 </div>
 
 <div class="box">
-  Round: <span id="round">1</span> / 10
+  Round: <span id="round">1</span> / 12
+</div>
+
+<div id="tipBox" class="box">
+  Tip: <span id="tip">Save a portion of your budget each round!</span>
 </div>
 
 <div>
@@ -110,17 +117,37 @@
 
 <div id="endPopup"></div>
 
+<!-- Sounds -->
+<audio id="coinSound" src="/static/coin.mp3" preload="auto"></audio>
+<audio id="bonusSound" src="/static/bonus.mp3" preload="auto"></audio>
+<audio id="lossSound" src="/static/loss.mp3" preload="auto"></audio>
+
 <script>
 let bank = 0;
 let budget = 0;
 let round = 1;
 let powerUsed = false;
-const maxRounds = 10;
-const goal = 300;
+let streak = 0;
+const maxRounds = 12;
+const goal = 500;
+
+const tips = [
+  "Always save at least 20% of your budget.",
+  "Spending wisely today can grow your bank tomorrow.",
+  "Lucky events can boost your coins!",
+  "Power-ups double your savings for one round.",
+  "Consecutive saves increase your streak bonus.",
+  "Avoid overspending to reach your goal faster."
+];
 
 function randomInt(min,max){return Math.floor(Math.random()*(max-min+1))+min;}
-function newBudget(){ budget = randomInt(20,100); document.getElementById("budget").textContent = budget; }
-function updateDisplay(){ document.getElementById("bank").textContent = bank; document.getElementById("round").textContent = round; }
+function pickTip(){ document.getElementById("tip").textContent = tips[randomInt(0,tips.length-1)]; }
+function newBudget(){ budget = randomInt(30,100); document.getElementById("budget").textContent = budget; pickTip(); }
+function updateDisplay(){ 
+  document.getElementById("bank").textContent = bank; 
+  document.getElementById("round").textContent = round;
+  document.getElementById("bankProgress").style.width = Math.min(100, (bank/goal)*100) + "%";
+}
 function disableButtons(disable){ document.querySelectorAll("button").forEach(b=>{if(!["🔄 New Game","⬅ Back to Quests"].includes(b.textContent)) b.disabled=disable;}); }
 
 function animateCoin(fromBox, toBox){
@@ -142,14 +169,16 @@ function animateCoin(fromBox, toBox){
 function randomEvent(){
   const chance = Math.random();
   if(chance < 0.2){
-    const bonus = randomInt(20,50);
+    const bonus = randomInt(20,60);
     bank += bonus;
     document.getElementById("message").textContent = `🍀 Lucky Bonus! +${bonus} coins added to bank!`;
     animateCoin(document.getElementById("budgetBox"), document.getElementById("bankBox"));
+    document.getElementById("bonusSound").play();
   } else if(chance > 0.95){
-    const loss = randomInt(10,30);
+    const loss = randomInt(10,40);
     bank = Math.max(0, bank-loss);
     document.getElementById("message").textContent = `⚠️ Unexpected expense! -${loss} coins from bank!`;
+    document.getElementById("lossSound").play();
   }
 }
 
@@ -167,14 +196,18 @@ function spendBudget(){
   const spent = randomInt(Math.floor(budget/2),budget);
   budget -= spent;
   document.getElementById("message").textContent = `💸 You spent ${spent} coins! Remaining budget: ${budget}`;
+  streak=0;
   round++; newBudget(); updateDisplay(); randomEvent(); checkGame();
 }
 
 function saveBudget(multiplier=1){
-  const saveAmount = budget * multiplier;
+  let saveAmount = Math.floor(budget*multiplier);
+  streak++;
+  if(streak>1) saveAmount += streak*5; // streak bonus
   animateCoin(document.getElementById("budgetBox"), document.getElementById("bankBox"));
-  bank += saveAmount; budget = 0;
-  document.getElementById("message").textContent = `💰 You saved ${saveAmount} coins! Bank: ${bank}`;
+  bank += saveAmount; budget=0;
+  document.getElementById("message").textContent = `💰 You saved ${saveAmount} coins! Bank: ${bank}` + (streak>1 ? ` 🔥 Streak Bonus: ${streak*5}` : "");
+  document.getElementById("coinSound").play();
   round++; newBudget(); updateDisplay(); randomEvent(); checkGame();
 }
 
@@ -186,7 +219,7 @@ function powerUp(){
 }
 
 function resetGame(){
-  bank = 0; round = 1; powerUsed=false;
+  bank = 0; round = 1; powerUsed=false; streak=0;
   newBudget(); updateDisplay();
   document.getElementById("message").textContent = "Choose wisely!";
   disableButtons(false);
@@ -195,7 +228,7 @@ function resetGame(){
 
 function showEndPopup(msg){
   const popup = document.getElementById("endPopup");
-  popup.innerHTML = msg + `<br>Final Bank: ${bank} coins`;
+  popup.innerHTML = msg + `<br>Final Bank: ${bank} coins<br>Longest Streak: ${streak}`;
   popup.style.display="block";
 }
 

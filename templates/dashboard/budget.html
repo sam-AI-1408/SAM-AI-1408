@@ -19,6 +19,17 @@
     h1 { margin-bottom: 10px; }
     p { margin: 5px 0; }
 
+    .instructions {
+      background: #111b3a;
+      border-left: 4px solid #00d0ff;
+      padding: 12px 18px;
+      border-radius: 10px;
+      margin-bottom: 20px;
+      font-size: 14px;
+      color: #cde8ff;
+      max-width: 700px;
+    }
+
     .budget-box {
       background: #0f1630;
       padding: 15px 25px;
@@ -42,7 +53,7 @@
       padding: 15px;
       border-radius: 15px;
       text-align: center;
-      width: 150px;
+      width: 160px;
       cursor: pointer;
       border: 2px solid #00d0ff;
       transition: transform 0.2s ease, background 0.2s ease;
@@ -57,7 +68,7 @@
       color: #00d0ff;
     }
 
-    .score {
+    .score, .xp-box {
       margin-top: 15px;
       font-size: 18px;
       font-weight: bold;
@@ -68,12 +79,12 @@
       padding: 15px;
       border: 2px dashed #00d0ff;
       border-radius: 12px;
-      max-width: 400px;
+      max-width: 450px;
       text-align: center;
     }
 
     button {
-      margin-top: 20px;
+      margin: 10px;
       padding: 10px 20px;
       border: none;
       border-radius: 12px;
@@ -87,7 +98,14 @@
 </head>
 <body>
   <h1>🛒 Budget Shopping Game</h1>
-  <p>Try to manage your money wisely and see what you can buy!</p>
+  <div class="instructions">
+    🎯 <b>How to Play:</b><br>
+    You get a budget and must shop wisely.<br>
+    ✅ Win if you buy <b>necessities</b> (food, clothes, books, shoes) — you don’t need to spend all.<br>
+    ✅ Spend all your money = Perfect Win.<br>
+    ❌ Only luxuries or too much leftover = Lose.<br>
+    🏆 Earn XP for winning. Learn budgeting!
+  </div>
 
   <div class="budget-box">
     Budget: <span id="budget">0</span> coins
@@ -96,12 +114,15 @@
   <div class="store" id="store"></div>
 
   <div class="score" id="message">💡 Choose items within your budget.</div>
+  <div class="xp-box">⭐ XP: <span id="xp">0</span></div>
+  <div class="xp-box">🔄 Rounds: <span id="rounds">0</span> | 🏆 Wins: <span id="wins">0</span></div>
 
   <div class="purchases">
     <h3>🛍 Your Purchases</h3>
     <ul id="purchasedItems"></ul>
   </div>
 
+  <button onclick="completeShopping()">✅ Complete Shopping</button>
   <button onclick="resetGame()">🔄 New Round</button>
   <a href="{{ url_for('quests_page') }}">
     <button>⬅ Back to Quests</button>
@@ -111,11 +132,26 @@
     let budget = 0;
     let purchased = [];
     let items = [];
+    let xp = 0, rounds = 0, wins = 0;
 
+    // Product pool with realistic prices
     const itemPool = [
-      "🍎 Apple","🥩 Meat","👕 Shirt","🎮 Game","📱 Phone",
-      "👟 Shoes","🍕 Pizza","🎧 Headphones","📚 Book","🍫 Chocolate",
-      "🧸 Toy","💍 Ring","🎸 Guitar","🏀 Basketball","💻 Laptop"
+      {name:"🍎 Apple", min:5, max:15, type:"necessity"},
+      {name:"🍕 Pizza", min:50, max:100, type:"necessity"},
+      {name:"🥩 Meat", min:80, max:150, type:"necessity"},
+      {name:"👕 Shirt", min:200, max:400, type:"necessity"},
+      {name:"👟 Shoes", min:500, max:1000, type:"necessity"},
+      {name:"📚 Book", min:100, max:300, type:"necessity"},
+      {name:"🍫 Chocolate", min:10, max:30, type:"luxury"},
+      {name:"🧸 Toy", min:150, max:400, type:"luxury"},
+      {name:"🎧 Headphones", min:800, max:2000, type:"luxury"},
+      {name:"💍 Ring", min:2000, max:5000, type:"luxury"},
+      {name:"🎸 Guitar", min:1500, max:4000, type:"luxury"},
+      {name:"🏀 Basketball", min:200, max:600, type:"luxury"},
+      {name:"📱 Phone", min:8000, max:15000, type:"luxury"},
+      {name:"💻 Laptop", min:20000, max:60000, type:"luxury"},
+      {name:"🚲 Bicycle", min:3000, max:7000, type:"luxury"},
+      {name:"🏠 House (Mini)", min:50000, max:100000, type:"luxury"}
     ];
 
     function randomInt(min, max) {
@@ -127,36 +163,31 @@
       storeDiv.innerHTML = "";
       items = [];
 
-      // Pick 4 random items
-      for (let i = 0; i < 4; i++) {
-        const name = itemPool[randomInt(0, itemPool.length - 1)];
-        const cost = randomInt(20, 120); // item costs vary
-        items.push({name, cost});
+      for (let i = 0; i < 6; i++) {
+        const product = itemPool[randomInt(0, itemPool.length - 1)];
+        const cost = randomInt(product.min, product.max);
+        items.push({name: product.name, cost, type: product.type});
       }
 
       items.forEach(item => {
         const div = document.createElement("div");
         div.className = "item";
         div.innerHTML = `<p>${item.name}</p><p class="price">${item.cost} coins</p>`;
-        div.onclick = () => buyItem(item.name, item.cost);
+        div.onclick = () => buyItem(item);
         storeDiv.appendChild(div);
       });
     }
 
-    function buyItem(item, cost) {
-      if (budget >= cost) {
-        budget -= cost;
+    function buyItem(item) {
+      if (budget >= item.cost) {
+        budget -= item.cost;
         purchased.push(item);
         document.getElementById("budget").textContent = budget;
-        document.getElementById("message").textContent = 
-          `✅ You bought ${item} for ${cost} coins.`;
+        document.getElementById("message").textContent = `✅ You bought ${item.name} for ${item.cost} coins.`;
         updatePurchasedList();
       } else {
-        document.getElementById("message").textContent = 
-          `❌ Not enough coins to buy ${item}!`;
+        document.getElementById("message").textContent = `❌ Not enough coins to buy ${item.name}!`;
       }
-
-      checkGameStatus();
     }
 
     function updatePurchasedList() {
@@ -164,32 +195,32 @@
       list.innerHTML = "";
       purchased.forEach(p => {
         const li = document.createElement("li");
-        li.textContent = p;
+        li.textContent = p.name + (p.type==="necessity" ? " ⭐" : "");
         list.appendChild(li);
       });
     }
 
-    function checkGameStatus() {
-      // Perfect win
+    function completeShopping() {
+      let necessityCount = purchased.filter(p => p.type==="necessity").length;
+      let msg = "";
+
       if (budget === 0) {
-        document.getElementById("message").textContent = 
-          "🏆 Perfect Round! You spent your entire budget!";
-        disableStore();
-        return;
+        msg = "🏆 Perfect Win! You spent your entire budget.";
+        xp += 100; wins++;
+      } else if (necessityCount >= 2) {
+        msg = `🎉 Smart Win! You bought necessities and saved ${budget} coins.`;
+        xp += 70; wins++;
+      } else {
+        msg = "💸 You Lose! You skipped necessities.";
+        xp += 10;
       }
 
-      // If no items affordable anymore
-      const affordable = items.some(item => item.cost <= budget);
-      if (!affordable) {
-        if (budget <= 10) {
-          document.getElementById("message").textContent = 
-            "🎉 You Win! Great budgeting!";
-        } else {
-          document.getElementById("message").textContent = 
-            "💸 You Lose! Too much money left unused.";
-        }
-        disableStore();
-      }
+      rounds++;
+      document.getElementById("message").textContent = msg;
+      document.getElementById("xp").textContent = xp;
+      document.getElementById("rounds").textContent = rounds;
+      document.getElementById("wins").textContent = wins;
+      disableStore();
     }
 
     function disableStore() {
@@ -201,16 +232,14 @@
     }
 
     function resetGame() {
-      budget = randomInt(80, 200); // new random budget
+      budget = randomInt(500, 50000);
       purchased = [];
       document.getElementById("budget").textContent = budget;
-      document.getElementById("message").textContent = 
-        "💡 Choose items within your budget.";
+      document.getElementById("message").textContent = "💡 Choose items within your budget.";
       updatePurchasedList();
       generateItems();
     }
 
-    // Start game on load
     resetGame();
   </script>
 </body>

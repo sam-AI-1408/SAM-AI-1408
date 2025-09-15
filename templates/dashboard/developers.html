@@ -1,4 +1,3 @@
-
 <!doctype html>
 <html lang="en">
 <head>
@@ -14,7 +13,7 @@
   --accent: #00d0ff;
   --muted: #9fb2c4;
   --alert: #ff8fa3;
-  --radius-xl: 12px;
+  --radius-xl: 14px;
   --font-primary: 'Inter', "Segoe UI", Roboto, sans-serif;
 }
 
@@ -60,43 +59,95 @@ body, html {
   gap: 18px;
   min-height: 100vh;
 }
-h1 { margin: 0 0 20px 0; font-size: 24px; color: var(--accent); }
+h1 { margin: 0 0 20px 0; font-size: 26px; color: var(--accent); text-shadow: 0 0 8px #00d0ff; }
 
-/* Developer cards */
+/* Developer grid */
 .dev-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
-  gap: 20px;
+  grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+  gap: 24px;
+  perspective: 1000px;
 }
 .dev-card {
-  background: var(--card);
+  background: transparent;
   border-radius: var(--radius-xl);
-  padding: 16px;
-  text-align: center;
-  box-shadow: 0 8px 20px rgba(0,0,0,0.5);
-  transition: transform 0.2s;
+  perspective: 1000px;
 }
-.dev-card:hover { transform: translateY(-6px); }
+.dev-inner {
+  position: relative;
+  width: 100%;
+  height: 380px;
+  text-align: center;
+  transition: transform 0.7s;
+  transform-style: preserve-3d;
+  cursor: pointer;
+}
+.dev-card:hover .dev-inner { transform: rotateY(180deg); }
+
+.dev-front, .dev-back {
+  position: absolute;
+  width: 100%;
+  height: 100%;
+  backface-visibility: hidden;
+  border-radius: var(--radius-xl);
+  box-shadow: 0 8px 20px rgba(0,0,0,0.6);
+  padding: 18px;
+}
+.dev-front {
+  background: var(--card);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+}
 .dev-photo {
   width: 120px; height: 120px;
-  margin: 0 auto 12px auto;
   border-radius: 50%;
   border: 2px solid var(--accent);
   background-size: cover;
   background-position: center;
+  margin-bottom: 12px;
 }
-.dev-name { font-weight: 700; font-size: 18px; margin-bottom: 4px; }
-.dev-role { font-size: 14px; color: var(--muted); margin-bottom: 8px; }
-.dev-desc { font-size: 13px; color: var(--accent); margin-bottom: 8px; }
-.view-btn {
+.dev-name { font-weight: 700; font-size: 18px; margin-bottom: 6px; }
+.dev-role { font-size: 14px; color: var(--muted); }
+
+.dev-back {
+  background: var(--panel);
+  transform: rotateY(180deg);
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  justify-content: flex-start;
+  font-size: 13px;
+  text-align: left;
+  color: var(--muted);
+  overflow-y: auto;
+}
+.dev-back strong { color: var(--accent); }
+.dev-back ul { padding-left: 16px; margin: 6px 0; }
+
+/* Skills tags */
+.skill-tag {
   display: inline-block;
-  padding: 6px 12px;
-  border-radius: 8px;
-  background: var(--accent);
-  color: #001;
-  text-decoration: none;
-  font-weight: 600;
+  background: rgba(0,208,255,0.1);
+  border: 1px solid var(--accent);
+  padding: 2px 6px;
+  margin: 2px;
+  border-radius: 6px;
+  font-size: 12px;
+  color: var(--accent);
 }
+
+/* Social links */
+.dev-links a {
+  display: inline-block;
+  margin-right: 10px;
+  color: var(--accent);
+  text-decoration: none;
+  font-size: 14px;
+  transition: color 0.2s;
+}
+.dev-links a:hover { color: #fff; text-shadow: 0 0 6px #00d0ff; }
 </style>
 </head>
 <body>
@@ -123,46 +174,46 @@ h1 { margin: 0 0 20px 0; font-size: 24px; color: var(--accent); }
   <div class="dev-grid">
     {% for dev in developers %}
     <div class="dev-card">
-      <div class="dev-photo" style="background-image: url('{{ url_for('static', filename='uploads/' ~ (dev['photo'] or 'default-avatar.png')) }}');"></div>
-      <div class="dev-name">{{ dev['name'] }}</div>
-      <div class="dev-role">{{ dev['role'] }}</div>
-      <div class="dev-desc">{{ dev['description'] }}</div>
+      <div class="dev-inner">
+        <!-- Front -->
+        <div class="dev-front">
+          <div class="dev-photo" style="background-image: url('{{ url_for('static', filename='uploads/' ~ (dev['photo'] or 'default-avatar.png')) }}');"></div>
+          <div class="dev-name">{{ dev['name'] }}</div>
+          <div class="dev-role">{{ dev['role'] }}</div>
+        </div>
+
+        <!-- Back -->
+        <div class="dev-back">
+          <p><strong>Description:</strong> {{ dev['description'] }}</p>
+          <p><strong>Education:</strong> {{ dev['education'] }}</p>
+          {% if dev['skills'] %}
+            <p><strong>Skills:</strong></p>
+            <div>
+              {% for skill in dev['skills'] %}
+                <span class="skill-tag">{{ skill }}</span>
+              {% endfor %}
+            </div>
+          {% endif %}
+          {% if dev['achievements'] %}
+            <p><strong>Achievements:</strong></p>
+            <ul>
+              {% for ach in dev['achievements'] %}
+              <li>{{ ach }}</li>
+              {% endfor %}
+            </ul>
+          {% endif %}
+          {% if dev['motto'] %}
+            <p><strong>Motto:</strong> “{{ dev['motto'] }}”</p>
+          {% endif %}
+          <div class="dev-links">
+            {% if dev['email'] %}<a href="mailto:{{ dev['email'] }}">📧 Email</a>{% endif %}
+            {% if dev['github'] %}<a href="https://github.com/{{ dev['github'] }}" target="_blank">🐙 GitHub</a>{% endif %}
+          </div>
+        </div>
+      </div>
     </div>
     {% endfor %}
   </div>
 </div>
-
-<!-- Click Sound -->
-<audio id="clickSound" src="/static/click.mp3" preload="auto"></audio>
-
-<!-- Floating Voice Button -->
-<button id="micBtn" style="
-  position: fixed; bottom: 20px; right: 20px; 
-  width: 60px; height: 60px; border-radius: 50%;
-  background: #00d0ff; color: #050615; font-size: 28px;
-  border: none; cursor: pointer; box-shadow: 0 4px 15px rgba(0,0,0,0.3);">
-  🎤
-</button>
-
-<!-- Voice Assistant Feedback -->
-<div id="voiceResponse" style="
-  position: fixed; bottom: 100px; right: 20px;
-  background: #0f1630; color: #00d0ff;
-  padding: 12px 16px; border-radius: 12px; 
-  display: none; max-width: 280px;">
-</div>
-
-<script>
-// Play click sound for all buttons and links
-const clickSound = document.getElementById("clickSound");
-
-document.addEventListener("click", (e) => {
-  if (e.target.tagName === "BUTTON" || e.target.tagName === "A") {
-    clickSound.currentTime = 0;
-    clickSound.play();
-  }
-});
-</script>
-
 </body>
 </html>

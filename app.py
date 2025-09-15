@@ -874,36 +874,59 @@ def developers():
     developers = [
         {
             "id": 1,
-            "name": "S.Imam Basha",
-            "role": "Coordinator",
-            "description": "Leads project vision & integration.",
-            "photo": "mem1.jpg"
+            "name": "S. Abdul Hameed",
+            "role": "Backend & Full Stack Designer",
+            "description": "Specializes in Python, Flask, and full-stack development.",
+            "photo": "hameed.jpg",  # put the actual image in /static/images/
+            "email": "animegroupmotivate@gmail.com",
+            "github": "sam-AI-1408",
+            "skills": ["Python", "Flask", "C", "HTML", "CSS", "JS", "Photoshop"],
+            "education": "Diploma in Computer Engineering (2024–2027), currently 2nd Year",
+            "achievements": ["Certificate in Photoshop"],
+            "motto": "To help others as much as I can."
         },
         {
             "id": 2,
-            "name": "S.Abdul Hameed",
-            "role": "Backend Developer",
-            "description": "Handles database & APIs.",
-            "photo": ".jpg.jpeg"
+            "name": "S. Imam Basha",
+            "role": "Coordinator",
+            "description": "Leads project vision & C programming expertise.",
+            "photo": "imam.jpg",
+            "email": None,
+            "github": None,
+            "skills": ["C"],
+            "education": "Diploma in Computer Engineering (2024–2027), currently 2nd Year",
+            "achievements": [],
+            "motto": "Every great system begins with a single line of code."
         },
         {
             "id": 3,
             "name": "Sagabala Goutham",
             "role": "Frontend Developer",
-            "description": "Designs UI/UX with neon theme.",
-            "photo": "member3.jpg"
+            "description": "Focuses on UI/UX design with HTML, CSS, and JS.",
+            "photo": "goutham.jpg",
+            "email": None,
+            "github": None,
+            "skills": ["HTML", "CSS", "JS"],
+            "education": "Diploma in Computer Engineering (2024–2027), currently 2nd Year",
+            "achievements": [],
+            "motto": "Design is intelligence made visible."
         },
         {
             "id": 4,
-            "name": "M.Yashwanth Kumar",
+            "name": "M. Yashwanth Kumar",
             "role": "Tester",
-            "description": "Ensures everything works smoothly.",
-            "photo": ".jpg.jpeg"
+            "description": "Ensures everything works smoothly & bug-free.",
+            "photo": "yashwanth.jpg",
+            "email": None,
+            "github": None,
+            "skills": ["Python", "SQL", "C"],
+            "education": "Diploma in Computer Engineering (2024–2027), currently 2nd Year",
+            "achievements": [],
+            "motto": "Quality is not an act, it is a habit."
         },
     ]
 
     return render_template("dashboard/developers.html", developers=developers)
-
 
 @app.route("/developer/<int:dev_id>")
 @login_required

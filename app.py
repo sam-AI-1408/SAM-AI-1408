@@ -924,6 +924,19 @@ def developers():
             "achievements": [],
             "motto": "Quality is not an act, it is a habit."
         },
+          {
+            "id": 5,
+            "name": "David boon",
+            "role": "Graphic designer",
+            "description": "Design the frontend and logos",
+            "photo": "yashwanth.jpg",
+            "email": None,
+            "github": None,
+            "skills": ["photoshop", "canva", "capcut"],
+            "education": "Diploma in Computer Engineering (2024–2027), currently 2nd Year",
+            "achievements": [],
+            "motto": "Quality is not an act, it is a habit."
+        },
     ]
 
     return render_template("dashboard/developers.html", developers=developers)
